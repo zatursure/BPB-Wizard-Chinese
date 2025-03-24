@@ -72,6 +72,9 @@ var (
 //go:embed node-v22.14.0-win-x64.zip
 var embeddedNodeZip []byte
 
+//go:embed wrangler.zip
+var embeddedWranglerZip []byte
+
 func main() {
 
 	if runtime.GOOS != "windows" {
@@ -83,6 +86,7 @@ func main() {
 	nodeDir := filepath.Join(installDir, "node-v22.14.0-win-x64")
 	wranglerConfigPath := filepath.Join(installDir, "wrangler.json")
 	nodeZipPath := filepath.Join(os.TempDir(), "node-v22.14.0-win-x64.zip")
+	wranglerZipPath := filepath.Join(os.TempDir(), "wrangler.zip")
 	workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
 	workerPath := filepath.Join(installDir, "worker.js")
 
@@ -92,13 +96,16 @@ func main() {
 		failMessage("Error setting PATH environment variable", err)
 		return
 	}
-
 	fmt.Printf("\n%s Installing %sBPB Wizard%s...\n", title, blue, reset)
-	nodePath := filepath.Join(nodeDir, "node.exe")
-	if _, err := runCommand(installDir, nodePath, "-v"); err != nil {
-		err := os.WriteFile(nodeZipPath, embeddedNodeZip, 0644)
-		if err != nil {
-			failMessage("Error copying files", err)
+
+	if _, err := runCommand(installDir, "npx", "wrangler", "-v"); err != nil {
+		if err := os.WriteFile(nodeZipPath, embeddedNodeZip, 0644); err != nil {
+			failMessage("Error copying Node.js", err)
+			return
+		}
+
+		if err := os.WriteFile(wranglerZipPath, embeddedWranglerZip, 0644); err != nil {
+			failMessage("Error copying Wrangler", err)
 			return
 		}
 
@@ -108,15 +115,14 @@ func main() {
 			return
 		}
 
-		fmt.Printf("\n%s Installing dependencies...\n", title)
-		if _, err := runCommand(installDir, "npm", "install", "wrangler@latest", "--save-dev"); err != nil {
-			failMessage("Error installing Wrangler", err)
+		if err := unzip(wranglerZipPath, installDir); err != nil {
+			failMessage("Error extracting Wrangler", err)
 			return
 		}
-
 		successMessage("Dependencies installed successfully!")
+	} else {
+		successMessage("BPB Wizard is already installed!")
 	}
-	successMessage("BPB Wizard is already installed!")
 
 	fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
 	for {
@@ -127,6 +133,7 @@ func main() {
 			}
 			continue
 		}
+		successMessage("Worker downloaded successfully!")
 		break
 	}
 
@@ -199,7 +206,6 @@ func main() {
 	for {
 		now := time.Now().Format("2006-01-02_15-04-05")
 		kvName := fmt.Sprintf("panel-kv-%s", now)
-
 		output, err := runCommand(installDir, "npx", "wrangler", "kv", "namespace", "create", kvName)
 		if err != nil {
 			failMessage("Error creating KV!", err)
@@ -218,15 +224,13 @@ func main() {
 		kvID = id
 		break
 	}
-
 	successMessage("KV created successfully!")
 
 	fmt.Printf("\n%s Building worker configuration...\n", title)
-	if err := buildWranglerConfig(wranglerConfigPath); err != nil {
+	if err := buildWranglerConfig(wranglerConfigPath, workerPath); err != nil {
 		failMessage("Error building Wrangler configuration", err)
 		return
 	}
-
 	successMessage("Worker configuration built successfully!")
 
 	for {
@@ -239,8 +243,8 @@ func main() {
 			}
 			continue
 		}
-
 		successMessage("Worker deployed successfully!")
+
 		prompt := fmt.Sprintf("Would you like to open %sBPB panel%s in browser? (y/n): ", blue, reset)
 		if response := promptUser(prompt); strings.ToLower(response) == "n" {
 			return
@@ -256,7 +260,6 @@ func main() {
 			failMessage("Error opening URL in browser", err)
 			return
 		}
-
 		break
 	}
 }
@@ -332,10 +335,10 @@ func extractURL(output string) (string, error) {
 	return url, nil
 }
 
-func buildWranglerConfig(filePath string) error {
+func buildWranglerConfig(filePath string, workerPath string) error {
 	config := WranglerConfig{
 		Name:                workerName,
-		Main:                "src/worker.js",
+		Main:                workerPath,
 		Compatibility_date:  time.Now().AddDate(0, 0, -1).Format("2006-01-02"),
 		Compatibility_flags: []string{"nodejs_compat"},
 		Workers_dev:         true,
@@ -411,8 +414,6 @@ func downloadFile(url, dest string) error {
 		return fmt.Errorf("error writing to file: %v", err)
 	}
 
-	message := fmt.Sprintf("File downloaded successfully to: %s", dest)
-	successMessage(message)
 	return nil
 }
 

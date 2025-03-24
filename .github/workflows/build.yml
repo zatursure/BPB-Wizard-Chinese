@@ -1,0 +1,119 @@
+name: Build BPB-Wizard
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.1"
+
+      - name: Setup Node.js standalone
+        run: |
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip" -OutFile "node-v22.14.0-win-x64.zip"
+          Expand-Archive -Path node-v22.14.0-win-x64.zip -DestinationPath .
+          echo "${{ github.workspace }}\node-v22.14.0-win-x64" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Install Wrangler
+        run: |
+          mkdir wrangler
+          cd wrangler
+          npm install wrangler --save-dev
+
+      - name: Setup project
+        run: |
+          Compress-Archive -Path wrangler\* -DestinationPath wrangler.zip
+          Move-Item -Path wrangler.zip -Destination .
+          Move-Item -Path node-v22.14.0-win-x64.zip -Destination .
+
+      - name: Build for all Windows architectures
+        run: |
+          $env:GOOS="windows"
+          
+          $env:GOARCH="386"
+          go build -o BPB-Wizard-386.exe BPB-Wizard.go
+          
+          $env:GOARCH="amd64"
+          go build -o BPB-Wizard-amd64.exe BPB-Wizard.go
+          
+          $env:GOARCH="arm"
+          go build -o BPB-Wizard-arm.exe BPB-Wizard.go
+          
+          $env:GOARCH="arm64"
+          go build -o BPB-Wizard-arm64.exe BPB-Wizard.go
+
+      - name: Upload built executables to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BPB-Wizard
+          path: |
+            BPB-Wizard-386.exe
+            BPB-Wizard-amd64.exe
+            BPB-Wizard-arm.exe
+            BPB-Wizard-arm64.exe
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v1.0
+          release_name: Release 1.0
+          draft: false
+          prerelease: true
+
+      - name: Upload Release Assets
+        id: upload-release-assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./BPB-Wizard-386.exe
+          asset_name: BPB-Wizard-386.exe
+          asset_content_type: application/octet-stream
+          
+      - name: Upload Release Assets (amd64)
+        id: upload-release-assets-amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./BPB-Wizard-amd64.exe
+          asset_name: BPB-Wizard-amd64.exe
+          asset_content_type: application/octet-stream
+            
+      - name: Upload Release Assets (arm)
+        id: upload-release-assets-arm
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./BPB-Wizard-arm.exe
+          asset_name: BPB-Wizard-arm.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Assets (arm64)
+        id: upload-release-assets-arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./BPB-Wizard-arm64.exe
+          asset_name: BPB-Wizard-arm64.exe
+          asset_content_type: application/octet-stream

@@ -3,3 +3,5 @@
 !go.mod
 !go.sum
 !BPB-Wizard.go
+!.github/
+!.github/**
