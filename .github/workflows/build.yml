@@ -26,7 +26,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path ".\bundles"
           Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip" -OutFile "bundles\node-v22.14.0-win-x64.zip"
-          Expand-Archive -Path node-v22.14.0-win-x64.zip -DestinationPath .
+          Expand-Archive -Path bundles\node-v22.14.0-win-x64.zip -DestinationPath .
           echo "${{ github.workspace }}\node-v22.14.0-win-x64" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
       - name: Install Wrangler
@@ -34,12 +34,7 @@ jobs:
           mkdir wrangler
           cd wrangler
           npm install wrangler --save-dev
-
-      - name: Setup project
-        run: |
-          Compress-Archive -Path wrangler\* -DestinationPath bundles\wrangler.zip
-          Move-Item -Path wrangler.zip -Destination .
-          Move-Item -Path node-v22.14.0-win-x64.zip -Destination .
+          Compress-Archive -Path .\* -DestinationPath ..\bundles\wrangler.zip
 
       - name: Build for all Windows architectures
         run: .\build.ps1
