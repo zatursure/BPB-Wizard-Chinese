@@ -62,8 +62,6 @@ var (
 	orange     = "\033[38;2;255;165;0m"
 	blue       = "\033[94m"
 	bold       = "\033[1m"
-	errMark    = bold + red + "✗" + reset
-	succMark   = bold + green + "✓" + reset
 	title      = bold + blue + "●" + reset
 	ask        = bold + "-" + reset
 	info       = bold + "+" + reset
@@ -78,7 +76,7 @@ var embeddedWranglerZip []byte
 func main() {
 
 	if runtime.GOOS != "windows" {
-		fmt.Printf("%s Unsupported OS. This script is for Windows only.\n", errMark)
+		failMessage("Unsupported OS. This script is for Windows only.", nil)
 		return
 	}
 
@@ -109,7 +107,7 @@ func main() {
 			return
 		}
 
-		fmt.Printf("%s Files copied successfuly.\n", succMark)
+		successMessage("Files copied successfuly.")
 		if err := unzip(nodeZipPath, installDir); err != nil {
 			failMessage("Error extracting Node.js", err)
 			return
@@ -157,7 +155,8 @@ func main() {
 		fmt.Printf("\n%s The random generated worker name (%sSubdomain%s) is: %s%s%s\n", info, green, reset, orange, workerName, reset)
 		if response := promptUser("Please enter a custom worker name or press ENTER to use generated one: "); response != "" {
 			if strings.Contains(strings.ToLower(response), "bpb") {
-				fmt.Printf("%s Worker name cannot contain %sbpb%s! Please try another name.\n", errMark, red, reset)
+				message := fmt.Sprintf("Worker name cannot contain %sbpb%s! Please try another name.", red, reset)
+				failMessage(message, nil)
 				continue
 			}
 			workerName = response
@@ -235,7 +234,7 @@ func main() {
 
 	for {
 		fmt.Printf("\n%s Deploying worker...\n", title)
-		output, err := runCommand(installDir, "npx", "wrangler", "deploy", workerPath)
+		output, err := runCommand(installDir, "npx", "wrangler", "deploy")
 		if err != nil {
 			failMessage("Error deploying worker", err)
 			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
@@ -292,7 +291,7 @@ func generateRandomString(charSet string, length int, isDomain bool) string {
 	for i := range randomBytes {
 		for {
 			char := charSet[r.Intn(len(charSet))]
-			if isDomain && (i == 1 || i == length) && char == byte('-') {
+			if isDomain && (i == 0 || i == length-1) && char == byte('-') {
 				continue
 			}
 			randomBytes[i] = char
@@ -338,7 +337,7 @@ func extractURL(output string) (string, error) {
 func buildWranglerConfig(filePath string, workerPath string) error {
 	config := WranglerConfig{
 		Name:                workerName,
-		Main:                workerPath,
+		Main:                "./worker.js",
 		Compatibility_date:  time.Now().AddDate(0, 0, -1).Format("2006-01-02"),
 		Compatibility_flags: []string{"nodejs_compat"},
 		Workers_dev:         true,
@@ -466,9 +465,15 @@ func openURL(url string) error {
 }
 
 func failMessage(message string, err error) {
-	fmt.Printf("%s %s: %s\n", errMark, message, err)
+	errMark := bold + red + "✗" + reset
+	if err != nil {
+		fmt.Printf("%s %s: %s\n", errMark, message, err)
+	}
+
+	fmt.Printf("%s %s\n", errMark, message)
 }
 
 func successMessage(message string) {
+	succMark := bold + green + "✓" + reset
 	fmt.Printf("%s %s\n", succMark, message)
 }
