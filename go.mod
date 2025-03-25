@@ -1,4 +1,4 @@
-module modules
+module BPB-Wizard
 
 go 1.24.1
 

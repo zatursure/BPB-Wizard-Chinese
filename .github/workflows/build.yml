@@ -1,5 +1,8 @@
 name: Build BPB-Wizard
 
+env:
+  RELEASE_VERSION: v1.1
+
 permissions:
   contents: write
 
@@ -21,7 +24,8 @@ jobs:
 
       - name: Setup Node.js standalone
         run: |
-          Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip" -OutFile "node-v22.14.0-win-x64.zip"
+          New-Item -ItemType Directory -Path ".\bundles"
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip" -OutFile "bundles\node-v22.14.0-win-x64.zip"
           Expand-Archive -Path node-v22.14.0-win-x64.zip -DestinationPath .
           echo "${{ github.workspace }}\node-v22.14.0-win-x64" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
@@ -33,35 +37,18 @@ jobs:
 
       - name: Setup project
         run: |
-          Compress-Archive -Path wrangler\* -DestinationPath wrangler.zip
+          Compress-Archive -Path wrangler\* -DestinationPath bundles\wrangler.zip
           Move-Item -Path wrangler.zip -Destination .
           Move-Item -Path node-v22.14.0-win-x64.zip -Destination .
 
       - name: Build for all Windows architectures
-        run: |
-          $env:GOOS="windows"
-          
-          $env:GOARCH="386"
-          go build -o BPB-Wizard-386.exe BPB-Wizard.go
-          
-          $env:GOARCH="amd64"
-          go build -o BPB-Wizard-amd64.exe BPB-Wizard.go
-          
-          $env:GOARCH="arm"
-          go build -o BPB-Wizard-arm.exe BPB-Wizard.go
-          
-          $env:GOARCH="arm64"
-          go build -o BPB-Wizard-arm64.exe BPB-Wizard.go
+        run: .\build.ps1
 
       - name: Upload built executables to artifacts
         uses: actions/upload-artifact@v4
         with:
           name: BPB-Wizard
-          path: |
-            BPB-Wizard-386.exe
-            BPB-Wizard-amd64.exe
-            BPB-Wizard-arm.exe
-            BPB-Wizard-arm64.exe
+          path: bin/*
 
       - name: Create Release
         id: create_release
@@ -69,51 +56,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v1.0
-          release_name: Release 1.0
+          tag_name: ${{ env.RELEASE_VERSION }}
+          release_name: Release ${{ env.RELEASE_VERSION }}
           draft: false
           prerelease: true
 
       - name: Upload Release Assets
-        id: upload-release-assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: svenstaro/upload-release-action@v2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./BPB-Wizard-386.exe
-          asset_name: BPB-Wizard-386.exe
-          asset_content_type: application/octet-stream
-          
-      - name: Upload Release Assets (amd64)
-        id: upload-release-assets-amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./BPB-Wizard-amd64.exe
-          asset_name: BPB-Wizard-amd64.exe
-          asset_content_type: application/octet-stream
-            
-      - name: Upload Release Assets (arm)
-        id: upload-release-assets-arm
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./BPB-Wizard-arm.exe
-          asset_name: BPB-Wizard-arm.exe
-          asset_content_type: application/octet-stream
-
-      - name: Upload Release Assets (arm64)
-        id: upload-release-assets-arm64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./BPB-Wizard-arm64.exe
-          asset_name: BPB-Wizard-arm64.exe
-          asset_content_type: application/octet-stream
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: bin/*
+          tag: ${{ env.RELEASE_VERSION }}
+          overwrite: true
+          file_glob: true

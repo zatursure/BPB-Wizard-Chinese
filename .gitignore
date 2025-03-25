@@ -5,3 +5,5 @@
 !BPB-Wizard.go
 !.github/
 !.github/**
+!*.syso
+!icon.ico

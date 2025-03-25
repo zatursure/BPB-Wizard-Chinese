@@ -69,10 +69,10 @@ var (
 	info       = bold + "+" + reset
 )
 
-//go:embed node-v22.14.0-win-x64.zip
+//go:embed bundles/node-v22.14.0-win-x64.zip
 var embeddedNodeZip []byte
 
-//go:embed wrangler.zip
+//go:embed bundles/wrangler.zip
 var embeddedWranglerZip []byte
 
 func main() {
