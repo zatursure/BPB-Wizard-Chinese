@@ -5,6 +5,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -30,6 +31,11 @@ type KVNamespace struct {
 	ID    string `json:"id"`
 }
 
+type Routes struct {
+	Custom_domain bool   `json:"custom_domain"`
+	Pattern       string `json:"pattern"`
+}
+
 type WranglerConfig struct {
 	Name                string               `json:"name"`
 	Main                string               `json:"main"`
@@ -38,6 +44,7 @@ type WranglerConfig struct {
 	Workers_dev         bool                 `json:"workers_dev"`
 	Kv_namespaces       []KVNamespaceBinding `json:"kv_namespaces"`
 	Vars                workerSettings       `json:"vars"`
+	Routes              []Routes             `json:"routes,omitempty"`
 }
 
 type workerSettings struct {
@@ -49,22 +56,23 @@ type workerSettings struct {
 }
 
 var (
-	kvID       string
-	workerName string
-	UUID       string
-	TR_PASS    string
-	PROXY_IP   string
-	FALLBACK   string
-	SUB_PATH   string
-	red        = "\033[31m"
-	green      = "\033[32m"
-	reset      = "\033[0m"
-	orange     = "\033[38;2;255;165;0m"
-	blue       = "\033[94m"
-	bold       = "\033[1m"
-	title      = bold + blue + "●" + reset
-	ask        = bold + "-" + reset
-	info       = bold + "+" + reset
+	kvID         string
+	workerName   string
+	customDomain string
+	UUID         string
+	TR_PASS      string
+	PROXY_IP     string
+	FALLBACK     string
+	SUB_PATH     string
+	red          = "\033[31m"
+	green        = "\033[32m"
+	reset        = "\033[0m"
+	orange       = "\033[38;2;255;165;0m"
+	blue         = "\033[94m"
+	bold         = "\033[1m"
+	title        = bold + blue + "●" + reset
+	ask          = bold + "-" + reset
+	info         = bold + "+" + reset
 )
 
 //go:embed bundles/node-v22.14.0-win-x64.zip
@@ -87,6 +95,13 @@ func main() {
 	wranglerZipPath := filepath.Join(os.TempDir(), "wrangler.zip")
 	workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
 	workerPath := filepath.Join(installDir, "worker.js")
+
+	if _, err := os.Stat(wranglerConfigPath); !errors.Is(err, os.ErrNotExist) {
+		if err := os.Remove(wranglerConfigPath); err != nil {
+			failMessage("Error deleting old worker config.", err)
+			return
+		}
+	}
 
 	currentPath := os.Getenv("PATH")
 	newPath := fmt.Sprintf("%s;%s", nodeDir, currentPath)
@@ -144,6 +159,12 @@ func main() {
 			}
 			continue
 		}
+
+		if _, err := runCommand(installDir, "npx", "wrangler", "telemetry", "disable"); err != nil {
+			failMessage("Error disabling telemetry.", err)
+			return
+		}
+
 		successMessage("Cloudflare logged in successfully!")
 		break
 	}
@@ -201,6 +222,11 @@ func main() {
 		SUB_PATH = response
 	}
 
+	fmt.Printf("\n%s You can set %sCustom domain%s ONLY if you registered domain on this cloudflare account.\n", info, green, reset)
+	if response := promptUser("Please enter a custom domain (if you have any) or press ENTER to ignore: "); response != "" {
+		customDomain = response
+	}
+
 	fmt.Printf("\n%s Creating KV namespace...\n", title)
 	for {
 		now := time.Now().Format("2006-01-02_15-04-05")
@@ -226,7 +252,7 @@ func main() {
 	successMessage("KV created successfully!")
 
 	fmt.Printf("\n%s Building worker configuration...\n", title)
-	if err := buildWranglerConfig(wranglerConfigPath, workerPath); err != nil {
+	if err := buildWranglerConfig(wranglerConfigPath); err != nil {
 		failMessage("Error building Wrangler configuration", err)
 		return
 	}
@@ -249,13 +275,19 @@ func main() {
 			return
 		}
 
-		url, err := extractURL(output)
-		if err != nil {
-			failMessage("Error getting URL", err)
-			return
+		var panelURL string
+		if customDomain == "" {
+			url, err := extractURL(output)
+			if err != nil {
+				failMessage("Error getting URL", err)
+				return
+			}
+			panelURL = url + "/panel"
+		} else {
+			panelURL = "https://" + customDomain + "/panel"
 		}
 
-		if err := openURL(url + "/panel"); err != nil {
+		if err := openURL(panelURL); err != nil {
 			failMessage("Error opening URL in browser", err)
 			return
 		}
@@ -334,7 +366,7 @@ func extractURL(output string) (string, error) {
 	return url, nil
 }
 
-func buildWranglerConfig(filePath string, workerPath string) error {
+func buildWranglerConfig(filePath string) error {
 	config := WranglerConfig{
 		Name:                workerName,
 		Main:                "./worker.js",
@@ -351,6 +383,13 @@ func buildWranglerConfig(filePath string, workerPath string) error {
 			Fallback: FALLBACK,
 			SubPath:  SUB_PATH,
 		},
+		Routes: []Routes{
+			{Custom_domain: true, Pattern: customDomain},
+		},
+	}
+
+	if customDomain == "" {
+		config.Routes = nil
 	}
 
 	jsonData, err := json.MarshalIndent(config, "", "  ")
@@ -371,11 +410,11 @@ func findMatch(pattern string, input string) (string, error) {
 		return "", err
 	}
 
-	match := re.FindString(input)
-	if match == "" {
-		return "", fmt.Errorf("no match found")
+	matches := re.FindAllString(input, -1)
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no matches found")
 	}
-	return match, nil
+	return matches[len(matches)-1], nil
 }
 
 func extractKvID(output string) (string, error) {
