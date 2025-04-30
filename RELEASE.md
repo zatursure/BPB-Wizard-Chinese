@@ -1,5 +1,5 @@
 # BPB Wizard new edition
-The whole project is developed from scratch and the whole credit goes to @MAM-SYS
+The whole project is developed from scratch and the whole credit goes to @MAM-SYS, please don't forget to support him.
 
 ## ⚙️ Bug fixes and Improvements
 - Added Termux support and scripts

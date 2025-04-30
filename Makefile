@@ -6,12 +6,12 @@ LDFLAGS = -X "main.BuildTimestamp=$(shell date -u '+%Y-%m-%d %H:%M:%S')" \
 GO := GO111MODULE=on CGO_ENABLED=0 go
 GOLANGCI_LINT_VERSION = v1.61.0
 
-GOOS_LIST := linux windows darwin
+GOOS_LIST := linux windows
 GOARCH_LIST := amd64 arm64 arm 386
 
 .PHONY: build
 build:
-	@mkdir -p bin
+	@mkdir -p bin dist
 	@for goos in $(GOOS_LIST); do \
 		if [ "$$goos" = "windows" ]; then \
 			ext=".exe"; \
@@ -20,16 +20,10 @@ build:
 		fi; \
 		for goarch in $(GOARCH_LIST); do \
 			echo "Building for $$goos-$$goarch..."; \
-			GOOS=$$goos GOARCH=$$goarch $(GO) build -ldflags '$(LDFLAGS)' -o bin/BPB-Wizard-$$goos-$$goarch$$ext || echo "Not supported, Skipping $$goos-$$goarch"; \
+			outfile="bin/BPB-Wizard-$$goos-$$goarch$$ext"; \
+			GOOS=$$goos GOARCH=$$goarch $(GO) build -ldflags '$(LDFLAGS)' -o $$outfile || { echo "Not supported, Skipping $$goos-$$goarch"; continue; }; \
+			zipfile="dist/BPB-Wizard-$$goos-$$goarch.zip"; \
+			echo "Zipping $$outfile -> $$zipfile"; \
+			zip -j -q $$zipfile $$outfile; \
 		done; \
-	done
-
-.PHONY: zip
-zip:
-	@mkdir -p dist
-	@for file in bin/*; do \
-		if [ -f "$$file" ]; then \
-			echo "Zipping $$file..."; \
-			zip -j "dist/$(basename $$file).zip" "$$file"; \
-		fi; \
 	done
