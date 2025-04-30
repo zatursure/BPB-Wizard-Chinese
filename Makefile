@@ -23,13 +23,3 @@ build:
 			GOOS=$$goos GOARCH=$$goarch $(GO) build -ldflags '$(LDFLAGS)' -o bin/BPB-Wizard-$$goos-$$goarch$$ext || echo "Not supported, Skipping $$goos-$$goarch"; \
 		done; \
 	done
-
-.PHONY: zip
-zip:
-	@for file in bin/*; do \
-		if [ -f "$$file" ]; then \
-			echo "Zipping $$file..."; \
-			zip -j "$$file.zip" "$$file"; \
-			rm "$$file"; \
-		fi; \
-	done
