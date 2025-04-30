@@ -26,6 +26,7 @@ build:
 
 .PHONY: zip
 zip:
+	@mkdir -p dist
 	@for file in bin/*; do \
 		if [ -f "$$file" ]; then \
 			echo "Zipping $$file..."; \
