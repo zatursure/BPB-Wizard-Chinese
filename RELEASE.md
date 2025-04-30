@@ -8,4 +8,4 @@ The whole project is developed from scratch and the whole credit goes to @MAM-SY
 - Better error handling
 - Solid deployments
 - Cross-Platform binaries
-- Fixed Pages deployment 
+- Deployment bug fix #6 
