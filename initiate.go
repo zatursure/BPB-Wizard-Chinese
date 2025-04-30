@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -11,18 +12,19 @@ import (
 	"strings"
 )
 
-func checkAndroid() (isAndroid bool, err error) {
+func checkAndroid() bool {
 	path := os.Getenv("PATH")
 	if runtime.GOOS == "android" || strings.Contains(path, "com.termux") {
 		prefix := os.Getenv("PREFIX")
 		certPath := filepath.Join(prefix, "etc/tls/cert.pem")
 		if err := os.Setenv("SSL_CERT_FILE", certPath); err != nil {
-			return true, err
+			failMessage("Failed to set Termux cert file.")
+			log.Fatalln(err)
 		}
-		return true, nil
+		return true
 	}
 
-	return false, nil
+	return false
 }
 
 func setDNS() {
@@ -31,9 +33,9 @@ func setDNS() {
 			Resolver: &net.Resolver{
 				PreferGo: true,
 				Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-					conn, err := net.Dial("udp", "8.8.8:53")
+					conn, err := net.Dial("udp", "8.8.8.8:53")
 					if err != nil {
-						failMessage("Error dialing DNS (please disconnect your VPN and try again", nil)
+						failMessage("Failed to dial DNS. Please disconnect your VPN and try again...")
 						log.Fatal(err)
 					}
 					return conn, nil
@@ -42,10 +44,24 @@ func setDNS() {
 		}
 		conn, err := d.DialContext(ctx, network, addr)
 		if err != nil {
-			failMessage("Error in DNS resolution (please disconnect your VPN and try again)", nil)
+			failMessage("DNS resolution failed. Please disconnect your VPN and try again...")
 			log.Fatal(err)
 		}
 		return conn, nil
 	}
 
+}
+
+func renderHeader() {
+	fmt.Printf(`
+■■■■■■■  ■■■■■■■  ■■■■■■■ 
+■■   ■■  ■■   ■■  ■■   ■■
+■■■■■■■  ■■■■■■■  ■■■■■■■ 
+■■   ■■  ■■       ■■   ■■
+■■■■■■■  ■■       ■■■■■■■  %sWizard%s %s%s
+`,
+		bold+green,
+		reset+green,
+		version,
+		reset)
 }

@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"math/rand/v2"
 	"net/http"
 
@@ -93,28 +94,26 @@ func generateCodeChallenge(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(hash[:])
 }
 
-func login(isAndroid bool) error {
+func login(isAndroid bool) {
 	url := generateAuthURL()
 	fmt.Printf("\n%s Login %sCloudflare%s...\n", title, orange, reset)
 
 	if err := openURL(isAndroid, url); err != nil {
-		return err
+		failMessage("Failed to login.")
+		log.Fatalln(err)
 	}
-
-	return nil
 }
 
 func callback(w http.ResponseWriter, r *http.Request) {
-	var err error
 	param := r.URL.Query().Get("state")
 	if param != state {
-		failMessage("Invalid OAuth state", nil)
+		failMessage("Invalid OAuth state.")
 		return
 	}
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		failMessage("No code returned", nil)
+		failMessage("No code returned.")
 		return
 	}
 
@@ -125,8 +124,8 @@ func callback(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		failMessage("Error exchanging oauthToken", err)
-		return
+		failMessage("Failed to exchange oauthToken.")
+		log.Fatalln(err)
 	}
 
 	obtainedToken <- token

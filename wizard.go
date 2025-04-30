@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -49,22 +50,22 @@ func (dt DeployType) String() string {
 func downloadFile(url, dest string) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("error making GET request: %v", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download file: %s (HTTP %d)", url, resp.StatusCode)
+		return fmt.Errorf("error downloading worker.js: %s", resp.Status)
 	}
 
 	out, err := os.Create(dest)
 	if err != nil {
-		return fmt.Errorf("error creating file: %v", err)
+		return err
 	}
 	defer out.Close()
 
 	if _, err = io.Copy(out, resp.Body); err != nil {
-		return fmt.Errorf("error writing to file: %v", err)
+		return err
 	}
 
 	return nil
@@ -111,12 +112,8 @@ func promptUser(prompt string) string {
 	return strings.TrimSpace(response)
 }
 
-func failMessage(message string, err error) {
+func failMessage(message string) {
 	errMark := bold + red + "✗" + reset
-	if err != nil {
-		message += ": " + err.Error()
-	}
-
 	fmt.Printf("%s %s\n", errMark, message)
 }
 
@@ -146,8 +143,9 @@ func openURL(isAndroid bool, url string) error {
 
 	err := exec.Command(cmd, args...).Start()
 	if err != nil {
-		return fmt.Errorf("error opening URL - %v", err)
+		return err
 	}
+
 	return nil
 }
 
@@ -219,7 +217,7 @@ func checkBPBPanel(isAndroid bool, url string) error {
 	return nil
 }
 
-func configureBPB(isAndroid bool) error {
+func configureBPB(isAndroid bool) {
 	token := <-obtainedToken
 	ctx := context.Background()
 	cfClient = NewClient(token)
@@ -227,13 +225,15 @@ func configureBPB(isAndroid bool) error {
 
 	cfAccount, err = getAccount(ctx)
 	if err != nil {
-		return err
+		failMessage("Failed to get Cloudflare account.")
+		log.Fatalln(err)
 	}
 
 	srcPath, err := os.MkdirTemp("", ".bpb-wizard")
 	workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
 	if err != nil {
-		return fmt.Errorf("error creating temp directory - %v", err)
+		failMessage("Failed to create temp directory.")
+		log.Fatalln(err)
 	}
 
 	fmt.Printf("\n%s Get settings...\n", title)
@@ -249,7 +249,7 @@ func configureBPB(isAndroid bool) error {
 		case "2":
 			deployType = DTPage
 		default:
-			failMessage("Wrong selection, Please choose 1 or 2 only!", nil)
+			failMessage("Wrong selection, Please choose 1 or 2 only!")
 			continue
 		}
 
@@ -263,7 +263,7 @@ func configureBPB(isAndroid bool) error {
 		if response := promptUser("Please enter a custom name or press ENTER to use generated one: "); response != "" {
 			if strings.Contains(strings.ToLower(response), "bpb") {
 				message := fmt.Sprintf("Name cannot contain %sbpb%s! Please try another name.", red, reset)
-				failMessage(message, nil)
+				failMessage(message)
 				continue
 			}
 
@@ -331,9 +331,10 @@ func configureBPB(isAndroid bool) error {
 
 	for {
 		if err = downloadFile(workerURL, workerPath); err != nil {
-			failMessage("Error downloading worker.js", err)
+			failMessage("Failed to download worker.js")
+			log.Printf("%v\n\n", err)
 			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
-				return nil
+				return
 			}
 			continue
 		}
@@ -349,9 +350,10 @@ func configureBPB(isAndroid bool) error {
 		kvName := fmt.Sprintf("panel-kv-%s", now)
 		kvNamespace, err = createKVNamespace(ctx, kvName)
 		if err != nil {
-			failMessage("Error creating KV!", err)
+			failMessage("Failed to create KV.")
+			log.Printf("%v\n\n", err)
 			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
-				return nil
+				return
 			}
 			continue
 		}
@@ -365,21 +367,18 @@ func configureBPB(isAndroid bool) error {
 
 	switch deployType {
 	case DTWorker:
-		panel, err = deployBPBWorker(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, workerPath, kvNamespace, customDomain, cachePath)
+		panel, err = deployBPBWorkers(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, workerPath, kvNamespace, customDomain, cachePath)
 	case DTPage:
-		panel, err = deployBPBPage(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, workerPath, kvNamespace, customDomain, cachePath)
+		panel, err = deployBPBPages(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, workerPath, kvNamespace, customDomain)
 	}
 
 	if err != nil {
-		return err
-	}
-
-	if panel == "" {
-		return fmt.Errorf("error deploying panel")
+		failMessage("Failed to get panel URL.")
+		log.Fatalln(err)
 	}
 
 	if err := checkBPBPanel(isAndroid, panel); err != nil {
-		return err
+		failMessage("Failed to checkout BPB panel.")
+		log.Fatalln(err)
 	}
-	return nil
 }

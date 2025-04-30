@@ -8,33 +8,24 @@ import (
 	"time"
 )
 
-func main() {
-	setDNS()
+const version = "v2.1.0"
 
-	isAndroid, err := checkAndroid()
-	if err != nil {
-		failMessage("Failed to setup Termux environment", err)
-		return
-	}
+func main() {
+	renderHeader()
+	setDNS()
+	isAndroid := checkAndroid()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
-		if err := login(isAndroid); err != nil {
-			failMessage("Failed to login", err)
-			return
-		}
+		login(isAndroid)
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := configureBPB(isAndroid)
-		if err != nil {
-			failMessage("Failed to configure BPB Panel", err)
-			return
-		}
+		configureBPB(isAndroid)
 	}()
 
 	server := &http.Server{Addr: ":8976"}
@@ -42,8 +33,8 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			failMessage("Error serving localhost.", err)
-			return
+			failMessage("Error serving localhost.")
+			log.Fatalln(err)
 		}
 	}()
 
@@ -54,6 +45,4 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		log.Printf("Server forced to shutdown: %v", err)
 	}
-
-	log.Println("Application terminated.")
 }

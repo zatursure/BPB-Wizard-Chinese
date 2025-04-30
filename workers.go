@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/textproto"
 	"os"
@@ -186,7 +187,7 @@ func createWorker(ctx context.Context, name string, uid string, pass string, pro
 	data, ct, err := param.MarshalMultipart()
 	r := bytes.NewBuffer(data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error marshalling multipart data: %w", err)
 	}
 
 	result, err := cfClient.Workers.Scripts.Update(
@@ -197,7 +198,7 @@ func createWorker(ctx context.Context, name string, uid string, pass string, pro
 		option.WithHeader("Content-Type", ct),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error updating worker script: %w", err)
 	}
 
 	return result, nil
@@ -206,7 +207,7 @@ func createWorker(ctx context.Context, name string, uid string, pass string, pro
 func createKVNamespace(ctx context.Context, ns string) (*kv.Namespace, error) {
 	res, err := cfClient.KV.Namespaces.New(ctx, kv.NamespaceNewParams{AccountID: cf.F(cfAccount.ID), Title: cf.F(ns)})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating KV namespace: %w", err)
 	}
 
 	return res, nil
@@ -226,7 +227,7 @@ func enableWorkerSubdomain(ctx context.Context, name string) (*workers.ScriptSub
 func addWorkersCustomDomain(ctx context.Context, script string, customDomain string, cachePath string) (string, error) {
 	extractor, err := tldextract.New(cachePath, false)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("error extracting TLD: %w", err)
 	}
 
 	result := extractor.Extract(customDomain)
@@ -241,11 +242,11 @@ func addWorkersCustomDomain(ctx context.Context, script string, customDomain str
 	})
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error listing zones: %w", err)
 	}
 
 	zone := zones.Result[0]
-	_, er := cfClient.Workers.Domains.Update(ctx, workers.DomainUpdateParams{
+	res, err := cfClient.Workers.Domains.Update(ctx, workers.DomainUpdateParams{
 		AccountID:   cf.F(cfAccount.ID),
 		Environment: cf.F("production"),
 		Hostname:    cf.F(customDomain),
@@ -253,11 +254,11 @@ func addWorkersCustomDomain(ctx context.Context, script string, customDomain str
 		ZoneID:      cf.F(zone.ID),
 	})
 
-	if er != nil {
-		return "", er
+	if err != nil {
+		return "", fmt.Errorf("error updating worker domain: %w", err)
 	}
 
-	return domain, nil
+	return res.Hostname, nil
 }
 
 func isWorkerAvailable(ctx context.Context, name string) bool {
@@ -265,7 +266,7 @@ func isWorkerAvailable(ctx context.Context, name string) bool {
 	return err != nil
 }
 
-func deployBPBWorker(
+func deployBPBWorkers(
 	ctx context.Context,
 	name string,
 	uid string,
@@ -286,7 +287,8 @@ func deployBPBWorker(
 
 		_, err := createWorker(ctx, name, uid, pass, proxy, fallback, sub, jsPath, kvNamespace)
 		if err != nil {
-			failMessage("Error deploying worker", err)
+			failMessage("Failed to deploy worker.")
+			log.Printf("%v\n\n", err)
 			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
 				return "", nil
 			}
@@ -300,7 +302,8 @@ func deployBPBWorker(
 	for {
 		_, err := enableWorkerSubdomain(ctx, name)
 		if err != nil {
-			failMessage("Error enabling worker subdomain", err)
+			failMessage("Failed to enable worker subdomain.")
+			log.Printf("%v\n\n", err)
 			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
 				return "", nil
 			}
@@ -313,11 +316,10 @@ func deployBPBWorker(
 
 	if customDomain != "" {
 		for {
-			var err error
-
-			_, err = addWorkersCustomDomain(ctx, name, customDomain, cachePath)
+			_, err := addWorkersCustomDomain(ctx, name, customDomain, cachePath)
 			if err != nil {
-				failMessage("Error adding custom domain.", err)
+				failMessage("Failed to add custom domain.")
+				log.Printf("%v\n\n", err)
 				if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
 					return "", nil
 				}

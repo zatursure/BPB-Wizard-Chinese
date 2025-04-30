@@ -12,19 +12,19 @@ A wizard to facilitate [BPB Panel](https://github.com/bia-pain-bache/BPB-Worker-
 > [!IMPORTANT]
 > Please disconnect any Proxy or VPN before running wizard.
 
-- You can download executable files from [Releases](https://github.com/bia-pain-bache/BPB-Wizard/releases) based on your OS and just run it.
-- Android users (Termux) can use these scripts (Have bug temporarily):
+- You can download executable files from [Releases](https://github.com/bia-pain-bache/BPB-Wizard/releases) based on your OS, unzip and just run it.
+- Android users (Termux) can use these scripts:
 
 ### ARM v8
 
 ```bash
-curl -L -# -o BPB-Wizard https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm64 && chmod +x ./BPB-Wizard && ./BPB-Wizard
+curl -L -# -o BPB-Wizard.zip https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm64.zip && unzip BPB-Wizard.zip && chmod +x ./BPB-Wizard && ./BPB-Wizard
 ```
 
 ### ARM v7 (Old models)
 
 ```bash
-curl -L -# -o BPB-Wizard https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm && chmod +x ./BPB-Wizard && ./BPB-Wizard
+curl -L -# -o BPB-Wizard.zip https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm.zip && unzip BPB-Wizard.zip && chmod +x ./BPB-Wizard && ./BPB-Wizard
 ```
 
 > [!TIP]
