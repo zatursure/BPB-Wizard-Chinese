@@ -6,7 +6,7 @@ LDFLAGS = -X "main.BuildTimestamp=$(shell date -u '+%Y-%m-%d %H:%M:%S')" \
 GO := GO111MODULE=on CGO_ENABLED=0 go
 GOLANGCI_LINT_VERSION = v1.61.0
 
-GOOS_LIST := linux windows
+GOOS_LIST := linux windows darwin
 GOARCH_LIST := amd64 arm64 arm 386
 
 .PHONY: build

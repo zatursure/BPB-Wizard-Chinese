@@ -23,10 +23,8 @@ jobs:
         with:
           go-version: ^1.24
 
-      - name: Build
-        run: |
-          make build VERSION=$VERSION
-          make zip
+      - name: Build and zip
+        run: make build VERSION=$VERSION
 
       - name: Read release note
         id: read_release
