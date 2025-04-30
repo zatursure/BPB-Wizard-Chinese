@@ -25,7 +25,7 @@ build:
 	done
 
 .PHONY: zip
-zip: build
+zip:
 	@for file in bin/*; do \
 		if [ -f "$$file" ]; then \
 			echo "Zipping $$file..."; \
