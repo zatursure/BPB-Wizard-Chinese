@@ -18,13 +18,13 @@ A wizard to facilitate [BPB Panel](https://github.com/bia-pain-bache/BPB-Worker-
 ### ARM v8
 
 ```bash
-curl -L -# -o BPB-Wizard.zip https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm64.zip && unzip BPB-Wizard.zip && chmod +x ./BPB-Wizard && ./BPB-Wizard
+curl -L -# -o BPB-Wizard.zip https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm64.zip && unzip -o BPB-Wizard.zip && chmod +x ./BPB-Wizard-linux-arm64 && ./BPB-Wizard-linux-arm64
 ```
 
 ### ARM v7 (Old models)
 
 ```bash
-curl -L -# -o BPB-Wizard.zip https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm.zip && unzip BPB-Wizard.zip && chmod +x ./BPB-Wizard && ./BPB-Wizard
+curl -L -# -o BPB-Wizard.zip https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm.zip && unzip -o BPB-Wizard.zip && chmod +x ./BPB-Wizard-linux-arm && ./BPB-Wizard-linux-arm
 ```
 
 > [!TIP]
