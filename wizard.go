@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -89,9 +91,33 @@ func generateRandomString(charSet string, length int, isDomain bool) string {
 	return string(randomBytes)
 }
 
-func generateRandomDomain(subDomainLength int) string {
+func generateRandomSubDomain(subDomainLength int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyz0123456789-"
 	return generateRandomString(charset, subDomainLength, true)
+}
+
+func isValidSubDomain(subDomain string) error {
+	if strings.Contains(subDomain, "bpb") {
+		message := fmt.Sprintf("Name cannot contain %sbpb%s. Please try again.\n", red, reset)
+		return fmt.Errorf("%s", message)
+	}
+
+	subdomainRegex := regexp.MustCompile(`^(?i)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+	isValid := subdomainRegex.MatchString(subDomain)
+	if !isValid {
+		message := fmt.Sprintf("Subdomain cannot start with %s-%s and should only contain %sA-Z%s and %s0-9%s. Please try again.\n", red, reset, green, reset, green, reset)
+		return fmt.Errorf("%s", message)
+	}
+	return nil
+}
+
+func isValidIpDomain(value string) bool {
+	if net.ParseIP(value) != nil {
+		return true
+	}
+
+	domainRegex := regexp.MustCompile(`^(?i)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`)
+	return domainRegex.MatchString(value)
 }
 
 func generateTrPassword(passwordLength int) string {
@@ -99,17 +125,39 @@ func generateTrPassword(passwordLength int) string {
 	return generateRandomString(charset, passwordLength, false)
 }
 
+func isValidTrPassword(trojanPassword string) bool {
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:',.<>?"
+	for _, c := range trojanPassword {
+		if !strings.ContainsRune(charset, c) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func generateSubURIPath(uriLength int) string {
 	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$&*_-+;:,."
 	return generateRandomString(charset, uriLength, false)
 }
 
+func isValidSubURIPath(uri string) bool {
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$&*_-+;:,."
+	for _, c := range uri {
+		if !strings.ContainsRune(charset, c) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func promptUser(prompt string) string {
 	fmt.Printf("%s %s", ask, prompt)
-	var response string
-	fmt.Scanln(&response)
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
 
-	return strings.TrimSpace(response)
+	return strings.TrimSpace(input)
 }
 
 func failMessage(message string) {
@@ -258,12 +306,11 @@ func configureBPB(isAndroid bool) {
 
 	var projectName string
 	for {
-		projectName = generateRandomDomain(32)
+		projectName = generateRandomSubDomain(32)
 		fmt.Printf("\n%s The random generated name (%sSubdomain%s) is: %s%s%s\n", info, green, reset, orange, projectName, reset)
 		if response := promptUser("Please enter a custom name or press ENTER to use generated one: "); response != "" {
-			if strings.Contains(strings.ToLower(response), "bpb") {
-				message := fmt.Sprintf("Name cannot contain %sbpb%s! Please try another name.", red, reset)
-				failMessage(message)
+			if err := isValidSubDomain(response); err != nil {
+				failMessage(err.Error())
 				continue
 			}
 
@@ -292,20 +339,60 @@ func configureBPB(isAndroid bool) {
 
 	uid := uuid.NewString()
 	fmt.Printf("\n%s The random generated %sUUID%s is: %s%s%s\n", info, green, reset, orange, uid, reset)
-	if response := promptUser("Please enter a custom uid or press ENTER to use generated one: "); response != "" {
-		uid = response
+	for {
+		if response := promptUser("Please enter a custom uid or press ENTER to use generated one: "); response != "" {
+			if _, err := uuid.Parse(response); err != nil {
+				failMessage("UUID is not standard, please try again.\n")
+				continue
+			}
+
+			uid = response
+			break
+		}
+
+		break
 	}
 
 	trPass := generateTrPassword(12)
 	fmt.Printf("\n%s The random generated %sTrojan password%s is: %s%s%s\n", info, green, reset, orange, trPass, reset)
-	if response := promptUser("Please enter a custom Trojan password or press ENTER to use generated one: "); response != "" {
-		trPass = response
+	for {
+		if response := promptUser("Please enter a custom Trojan password or press ENTER to use generated one: "); response != "" {
+			if !isValidTrPassword(response) {
+				failMessage("Trojan password cannot contain none standard character! Please try again.\n")
+				continue
+			}
+
+			trPass = response
+			break
+		}
+
+		break
 	}
 
 	proxyIP := "bpb.yousef.isegaro.com"
 	fmt.Printf("\n%s The default %sProxy IP%s is: %s%s%s\n", info, green, reset, orange, proxyIP, reset)
-	if response := promptUser("Please enter custom Proxy IP/Domains or press ENTER to use default: "); response != "" {
-		proxyIP = response
+	for {
+		if response := promptUser("Please enter custom Proxy IP/Domains or press ENTER to use default: "); response != "" {
+			areValid := true
+			values := strings.SplitSeq(response, ",")
+			for v := range values {
+				trimmedValue := strings.TrimSpace(v)
+				if !isValidIpDomain(trimmedValue) {
+					areValid = false
+					message := fmt.Sprintf("%s is not a valid IP or Domain. Please try again.\n", trimmedValue)
+					failMessage(message)
+				}
+			}
+
+			if !areValid {
+				continue
+			}
+
+			proxyIP = response
+			break
+		}
+
+		break
 	}
 
 	fallback := "speed.cloudflare.com"
@@ -316,8 +403,18 @@ func configureBPB(isAndroid bool) {
 
 	subPath := generateSubURIPath(16)
 	fmt.Printf("\n%s The random generated %sSubscription path%s is: %s%s%s\n", info, green, reset, orange, subPath, reset)
-	if response := promptUser("Please enter a custom Subscription path or press ENTER to use generated one: "); response != "" {
-		subPath = response
+	for {
+		if response := promptUser("Please enter a custom Subscription path or press ENTER to use generated one: "); response != "" {
+			if !isValidSubURIPath(response) {
+				failMessage("URI cannot contain none standard character! Please try again.\n")
+				continue
+			}
+
+			subPath = response
+			break
+		}
+
+		break
 	}
 
 	var customDomain string
