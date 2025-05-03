@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,6 +48,11 @@ var DeployTypeNames = map[DeployType]string{
 
 func (dt DeployType) String() string {
 	return DeployTypeNames[dt]
+}
+
+type Panel struct {
+	Name string
+	Type string
 }
 
 func downloadFile(url, dest string) error {
@@ -265,7 +271,27 @@ func checkBPBPanel(isAndroid bool, url string) error {
 	return nil
 }
 
+func runWizard(isAndroid bool) {
+	renderHeader()
+	fmt.Printf("\n%s Welcome to %sBPB Wizard%s!\n", title, green, reset)
+	fmt.Printf("%s This wizard will help you to deploy or modify %sBPB Panel%s on Cloudflare.\n", info, green, reset)
+	fmt.Printf("%s Please make sure you have a verified Cloudflare account.\n\n", info)
+
+	response := promptUser("Please enter 1 to create a panel or 2 to modify an existing panel: ")
+	switch response {
+	case "1":
+		configureBPB(isAndroid)
+		return
+	case "2":
+		modifyBPB(isAndroid)
+		return
+	default:
+		failMessage("Wrong selection, Please choose 1 or 2 only!")
+	}
+}
+
 func configureBPB(isAndroid bool) {
+	go login(isAndroid)
 	token := <-obtainedToken
 	ctx := context.Background()
 	cfClient = NewClient(token)
@@ -274,13 +300,6 @@ func configureBPB(isAndroid bool) {
 	cfAccount, err = getAccount(ctx)
 	if err != nil {
 		failMessage("Failed to get Cloudflare account.")
-		log.Fatalln(err)
-	}
-
-	srcPath, err := os.MkdirTemp("", ".bpb-wizard")
-	workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
-	if err != nil {
-		failMessage("Failed to create temp directory.")
 		log.Fatalln(err)
 	}
 
@@ -424,7 +443,13 @@ func configureBPB(isAndroid bool) {
 	}
 
 	fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
+	srcPath, err := os.MkdirTemp("", ".bpb-wizard")
+	if err != nil {
+		failMessage("Failed to create temp directory.")
+		log.Fatalln(err)
+	}
 	workerPath := filepath.Join(srcPath, "worker.js")
+	workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
 
 	for {
 		if err = downloadFile(workerURL, workerPath); err != nil {
@@ -477,5 +502,164 @@ func configureBPB(isAndroid bool) {
 	if err := checkBPBPanel(isAndroid, panel); err != nil {
 		failMessage("Failed to checkout BPB panel.")
 		log.Fatalln(err)
+	}
+}
+
+func modifyBPB(isAndroid bool) {
+	go login(isAndroid)
+	token := <-obtainedToken
+	ctx := context.Background()
+	cfClient = NewClient(token)
+	var panels []Panel
+	var err error
+
+	cfAccount, err = getAccount(ctx)
+	if err != nil {
+		failMessage("Failed to get Cloudflare account.")
+		log.Fatalln(err)
+	}
+
+	fmt.Printf("\n%s Getting panels list...\n", title)
+	workersList, err := listWorkers(ctx)
+	if err != nil {
+		failMessage("Failed to get workers list.")
+		log.Fatalln(err)
+	}
+
+	if len(workersList) == 0 {
+		failMessage("No workers found.")
+	} else {
+		for _, worker := range workersList {
+			panels = append(panels, Panel{
+				Name: worker,
+				Type: "workers",
+			})
+		}
+	}
+
+	pagesList, err := listPages(ctx)
+	if err != nil {
+		failMessage("Failed to get pages list.")
+		log.Fatalln(err)
+	}
+
+	if len(pagesList) == 0 {
+		failMessage("No pages found.")
+	} else {
+		for _, pages := range pagesList {
+			panels = append(panels, Panel{
+				Name: pages,
+				Type: "pages",
+			})
+		}
+	}
+
+	if len(panels) == 0 {
+		failMessage("No BPB Panels found, Exiting...")
+		return
+	}
+
+	message := fmt.Sprintf("Found %d Workers and pages:\n", len(panels))
+	successMessage(message)
+	for i, panel := range panels {
+		fmt.Printf(" %d. %s - %s\n", i+1, panel.Name, panel.Type)
+	}
+
+	for {
+		var index int
+		for {
+			fmt.Println("")
+			response := promptUser("Please enter the number you want to modify: ")
+			index, err = strconv.Atoi(response)
+			if err != nil || index < 1 || index > len(panels) {
+				failMessage("Invalid selection, please try again.")
+				continue
+			}
+
+			break
+		}
+
+		panelName := panels[index-1].Name
+		panelType := panels[index-1].Type
+
+		response := promptUser("Please enter 1 to update or 2 to delete panel: ")
+		for {
+			switch response {
+			case "1":
+
+				fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
+				srcPath, err := os.MkdirTemp("", ".bpb-wizard")
+				if err != nil {
+					failMessage("Failed to create temp directory.")
+					log.Fatalln(err)
+				}
+
+				workerPath := filepath.Join(srcPath, "worker.js")
+				workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
+
+				for {
+					if _, err := os.Stat(workerPath); err != nil {
+						if !os.IsNotExist(err) {
+							failMessage("Failed to check worker.js")
+							log.Printf("%v", err)
+						}
+					} else {
+						break
+					}
+
+					if err = downloadFile(workerURL, workerPath); err != nil {
+						failMessage("Failed to download worker.js")
+						log.Printf("%v\n\n", err)
+						if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
+							return
+						}
+						continue
+					}
+					successMessage("Worker downloaded successfully!")
+					break
+				}
+
+				if panelType == "workers" {
+					if err := updateWorker(ctx, panelName, workerPath); err != nil {
+						failMessage("Failed to update panel.")
+						log.Fatalln(err)
+					}
+
+					successMessage("Panel updated successfully!")
+					return
+				}
+
+				if err := updatePagesProject(ctx, panelName, workerPath); err != nil {
+					failMessage("Failed to update panel.")
+					log.Fatalln(err)
+				}
+
+				successMessage("Panel updated successfully!")
+				return
+
+			case "2":
+				if panelType == "workers" {
+					if err := deleteWorker(ctx, panelName); err != nil {
+						failMessage("Failed to delete panel.")
+						log.Fatalln(err)
+					}
+
+					successMessage("Panel deleted successfully!")
+					return
+				}
+
+				if err := deletePagesProject(ctx, panelName); err != nil {
+					failMessage("Failed to delete panel.")
+					log.Fatalln(err)
+				}
+
+				successMessage("Panel deleted successfully!")
+				return
+
+			default:
+				failMessage("Wrong selection, Please choose 1 or 2 only!")
+				continue
+			}
+		}
 	}
 }

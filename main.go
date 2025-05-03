@@ -8,24 +8,18 @@ import (
 	"time"
 )
 
-const version = "v2.0.0"
+const version = "v2.1.0"
 
 func main() {
-	renderHeader()
 	setDNS()
 	isAndroid := checkAndroid()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		login(isAndroid)
-	}()
-
-	go func() {
-		defer wg.Done()
-		configureBPB(isAndroid)
+		runWizard(isAndroid)
 	}()
 
 	server := &http.Server{Addr: ":8976"}

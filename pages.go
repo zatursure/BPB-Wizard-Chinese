@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -230,6 +231,75 @@ func addPagesCustomDomain(ctx context.Context, projectName string, customDomain 
 func isPageAvailable(ctx context.Context, projectName string) bool {
 	_, err := cfClient.Pages.Projects.Get(ctx, projectName, pages.ProjectGetParams{AccountID: cf.F(cfAccount.ID)})
 	return err != nil
+}
+
+func listPages(ctx context.Context) ([]string, error) {
+	projects, err := cfClient.Pages.Projects.List(ctx, pages.ProjectListParams{
+		AccountID: cf.F(cfAccount.ID),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing pages projects: %w", err)
+	}
+
+	var projectNames []string
+	for _, project := range projects.Result {
+		rawName := project.JSON.ExtraFields["name"].Raw()
+		var name string
+		if err := json.Unmarshal([]byte(rawName), &name); err != nil {
+			return nil, fmt.Errorf("error unmarshalling project name: %w", err)
+		}
+
+		projectNames = append(projectNames, name)
+	}
+
+	return projectNames, nil
+}
+
+func deletePagesProject(ctx context.Context, projectName string) error {
+	_, err := cfClient.Pages.Projects.Delete(ctx, projectName, pages.ProjectDeleteParams{
+		AccountID: cf.F(cfAccount.ID),
+	})
+
+	if err != nil {
+		return fmt.Errorf("error deleting pages project: %w", err)
+	}
+
+	return nil
+}
+
+func updatePagesProject(ctx context.Context, projectName string, jsPath string) error {
+	project, err := cfClient.Pages.Projects.Get(ctx, projectName, pages.ProjectGetParams{
+		AccountID: cf.F(cfAccount.ID),
+	})
+	if err != nil {
+		return fmt.Errorf("could not get project: %w", err)
+	}
+
+	param := projectDeploymentNewParams{
+		AccountID: cfAccount.ID,
+		Branch:    "main",
+		Manifest:  "{}",
+		WorkerJS:  &multipart.FileHeader{Filename: "worker.js"},
+		jsPath:    jsPath,
+	}
+	data, ct, err := param.MarshalMultipart()
+	if err != nil {
+		return fmt.Errorf("error marshalling pages multipart data: %w", err)
+	}
+	r := bytes.NewBuffer(data)
+
+	_, er := cfClient.Pages.Projects.Deployments.New(
+		ctx,
+		project.Name,
+		pages.ProjectDeploymentNewParams{AccountID: cf.F(cfAccount.ID)},
+		option.WithRequestBody(ct, r),
+	)
+
+	if er != nil {
+		return fmt.Errorf("error updating pages project: %w", er)
+	}
+
+	return nil
 }
 
 func deployBPBPages(

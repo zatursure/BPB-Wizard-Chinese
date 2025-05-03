@@ -266,6 +266,67 @@ func isWorkerAvailable(ctx context.Context, name string) bool {
 	return err != nil
 }
 
+func listWorkers(ctx context.Context) ([]string, error) {
+	workersList, err := cfClient.Workers.Scripts.List(ctx, workers.ScriptListParams{AccountID: cf.F(cfAccount.ID)})
+	if err != nil {
+		return nil, fmt.Errorf("error listing workers: %w", err)
+	}
+
+	var workerNames []string
+	for _, worker := range workersList.Result {
+		workerNames = append(workerNames, worker.ID)
+	}
+
+	return workerNames, nil
+}
+
+func deleteWorker(ctx context.Context, name string) error {
+	err := cfClient.Workers.Scripts.Delete(ctx, name, workers.ScriptDeleteParams{
+		AccountID: cf.F(cfAccount.ID),
+		Force:     cf.F(true),
+	})
+	if err != nil {
+		return fmt.Errorf("error deleting worker: %w", err)
+	}
+
+	return nil
+}
+
+func updateWorker(ctx context.Context, name string, jsPath string) error {
+	param := ScriptUpdateParams{
+		AccountID: cfAccount.ID,
+		Metadata: ScriptUpdateParamsMetadataForm{
+			MainModule: "worker.js",
+			jsPath:     jsPath,
+		},
+	}
+
+	data, ct, err := param.MarshalMultipart()
+	r := bytes.NewBuffer(data)
+	if err != nil {
+		return fmt.Errorf("error marshalling multipart data: %w", err)
+	}
+
+	_, er := cfClient.Workers.Scripts.Content.Update(
+		ctx,
+		name,
+		workers.ScriptContentUpdateParams{
+			AccountID: cf.F(cfAccount.ID),
+			Metadata: cf.F(workers.WorkerMetadataParam{
+				MainModule: cf.F("worker.js"),
+				BodyPart:   cf.F(ct),
+			}),
+		},
+		option.WithRequestBody(ct, r),
+		option.WithHeader("Content-Type", ct),
+	)
+	if er != nil {
+		return fmt.Errorf("error updating worker script: %w", er)
+	}
+
+	return nil
+}
+
 func deployBPBWorkers(
 	ctx context.Context,
 	name string,
