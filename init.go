@@ -12,6 +12,18 @@ import (
 	"strings"
 )
 
+const (
+	red    = "\033[31m"
+	green  = "\033[32m"
+	reset  = "\033[0m"
+	orange = "\033[38;2;255;165;0m"
+	blue   = "\033[94m"
+	bold   = "\033[1m"
+	title  = bold + blue + "●" + reset
+	ask    = bold + "-" + reset
+	info   = bold + "+" + reset
+)
+
 func checkAndroid() {
 	path := os.Getenv("PATH")
 	if runtime.GOOS == "android" || strings.Contains(path, "com.termux") {

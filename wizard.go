@@ -22,18 +22,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	red    = "\033[31m"
-	green  = "\033[32m"
-	reset  = "\033[0m"
-	orange = "\033[38;2;255;165;0m"
-	blue   = "\033[94m"
-	bold   = "\033[1m"
-	title  = bold + blue + "●" + reset
-	ask    = bold + "-" + reset
-	info   = bold + "+" + reset
-)
-
 type DeployType int
 
 const (
@@ -54,6 +42,14 @@ type Panel struct {
 	Name string
 	Type string
 }
+
+const (
+	CharsetAlphaNumeric      = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	CharsetSpecialCharacters = "!@#$%^&*()_+[]{}|;:',.<>?"
+	CharsetTrojanPassword    = CharsetAlphaNumeric + CharsetSpecialCharacters
+	CharsetSubDomain         = "abcdefghijklmnopqrstuvwxyz0123456789-"
+	CharsetURIPath           = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$&*_-+;:,."
+)
 
 func downloadFile(url, dest string) error {
 	resp, err := http.Get(url)
@@ -125,8 +121,7 @@ func generateRandomString(charSet string, length int, isDomain bool) string {
 }
 
 func generateRandomSubDomain(subDomainLength int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789-"
-	return generateRandomString(charset, subDomainLength, true)
+	return generateRandomString(CharsetSubDomain, subDomainLength, true)
 }
 
 func isValidSubDomain(subDomain string) error {
@@ -154,14 +149,12 @@ func isValidIpDomain(value string) bool {
 }
 
 func generateTrPassword(passwordLength int) string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:',.<>?"
-	return generateRandomString(charset, passwordLength, false)
+	return generateRandomString(CharsetTrojanPassword, passwordLength, false)
 }
 
 func isValidTrPassword(trojanPassword string) bool {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:',.<>?"
 	for _, c := range trojanPassword {
-		if !strings.ContainsRune(charset, c) {
+		if !strings.ContainsRune(CharsetTrojanPassword, c) {
 			return false
 		}
 	}
@@ -170,14 +163,12 @@ func isValidTrPassword(trojanPassword string) bool {
 }
 
 func generateSubURIPath(uriLength int) string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$&*_-+;:,."
-	return generateRandomString(charset, uriLength, false)
+	return generateRandomString(CharsetURIPath, uriLength, false)
 }
 
 func isValidSubURIPath(uri string) bool {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$&*_-+;:,."
 	for _, c := range uri {
-		if !strings.ContainsRune(charset, c) {
+		if !strings.ContainsRune(CharsetURIPath, c) {
 			return false
 		}
 	}
@@ -519,7 +510,6 @@ func modifyPanel() {
 	token := <-obtainedToken
 	ctx := context.Background()
 	cfClient = NewClient(token)
-	var panels []Panel
 	var err error
 
 	cfAccount, err = getAccount(ctx)
@@ -528,45 +518,48 @@ func modifyPanel() {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("\n%s Getting panels list...\n", title)
-	workersList, err := listWorkers(ctx)
-	if err != nil {
-		failMessage("Failed to get workers list.")
-		log.Println(err)
-	} else {
-		for _, worker := range workersList {
-			panels = append(panels, Panel{
-				Name: worker,
-				Type: "workers",
-			})
-		}
-	}
-
-	pagesList, err := listPages(ctx)
-	if err != nil {
-		failMessage("Failed to get pages list.")
-		log.Println(err)
-	} else {
-		for _, pages := range pagesList {
-			panels = append(panels, Panel{
-				Name: pages,
-				Type: "pages",
-			})
-		}
-	}
-
-	if len(panels) == 0 {
-		failMessage("No Workers or Pages found, Exiting...")
-		return
-	}
-
-	message := fmt.Sprintf("Found %d workers and pages projects:\n", len(panels))
-	successMessage(message)
-	for i, panel := range panels {
-		fmt.Printf(" %s%d.%s %s - %s%s%s\n", blue, i+1, reset, panel.Name, orange, panel.Type, reset)
-	}
-
 	for {
+		var panels []Panel
+		var message string
+
+		fmt.Printf("\n%s Getting panels list...\n", title)
+		workersList, err := listWorkers(ctx)
+		if err != nil {
+			failMessage("Failed to get workers list.")
+			log.Println(err)
+		} else {
+			for _, worker := range workersList {
+				panels = append(panels, Panel{
+					Name: worker,
+					Type: "workers",
+				})
+			}
+		}
+
+		pagesList, err := listPages(ctx)
+		if err != nil {
+			failMessage("Failed to get pages list.")
+			log.Println(err)
+		} else {
+			for _, pages := range pagesList {
+				panels = append(panels, Panel{
+					Name: pages,
+					Type: "pages",
+				})
+			}
+		}
+
+		if len(panels) == 0 {
+			failMessage("No Workers or Pages found, Exiting...")
+			return
+		}
+
+		message = fmt.Sprintf("Found %d workers and pages projects:\n", len(panels))
+		successMessage(message)
+		for i, panel := range panels {
+			fmt.Printf(" %s%d.%s %s - %s%s%s\n", blue, i+1, reset, panel.Name, orange, panel.Type, reset)
+		}
+
 		var index int
 		for {
 			fmt.Println("")
@@ -583,7 +576,7 @@ func modifyPanel() {
 		panelName := panels[index-1].Name
 		panelType := panels[index-1].Type
 
-		message := fmt.Sprintf("Please enter 1 to %supdate%s or 2 to %sdelete%s panel: ", green, reset, red, reset)
+		message = fmt.Sprintf("Please enter 1 to %supdate%s or 2 to %sdelete%s panel: ", green, reset, red, reset)
 		response := promptUser(message)
 		for {
 			switch response {
@@ -596,8 +589,8 @@ func modifyPanel() {
 						log.Fatalln(err)
 					}
 
-					successMessage("Panel updated successfully!")
-					return
+					successMessage("Panel updated successfully!\n")
+					break
 				}
 
 				if err := updatePagesProject(ctx, panelName); err != nil {
@@ -605,8 +598,7 @@ func modifyPanel() {
 					log.Fatalln(err)
 				}
 
-				successMessage("Panel updated successfully!")
-				return
+				successMessage("Panel updated successfully!\n")
 
 			case "2":
 
@@ -616,8 +608,8 @@ func modifyPanel() {
 						log.Fatalln(err)
 					}
 
-					successMessage("Panel deleted successfully!")
-					return
+					successMessage("Panel deleted successfully!\n")
+					break
 				}
 
 				if err := deletePagesProject(ctx, panelName); err != nil {
@@ -625,13 +617,18 @@ func modifyPanel() {
 					log.Fatalln(err)
 				}
 
-				successMessage("Panel deleted successfully!")
-				return
+				successMessage("Panel deleted successfully!\n")
 
 			default:
 				failMessage("Wrong selection, Please choose 1 or 2 only!")
 				continue
 			}
+
+			break
+		}
+
+		if response := promptUser("Would you like to modify another panel? (y/n): "); strings.ToLower(response) == "n" {
+			break
 		}
 	}
 }
