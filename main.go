@@ -10,16 +10,25 @@ import (
 
 const version = "v2.1.0"
 
+var (
+	srcPath    string
+	workerPath string
+	cachePath  string
+	isAndroid  = false
+	workerURL  = "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
+)
+
 func main() {
+	initPaths()
 	setDNS()
-	isAndroid := checkAndroid()
+	checkAndroid()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		runWizard(isAndroid)
+		runWizard()
 	}()
 
 	server := &http.Server{Addr: ":8976"}

@@ -79,6 +79,33 @@ func downloadFile(url, dest string) error {
 	return nil
 }
 
+func downloadWorker() {
+	fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
+
+	for {
+		if _, err := os.Stat(workerPath); err != nil {
+			if !os.IsNotExist(err) {
+				failMessage("Failed to check worker.js")
+				log.Fatalln(err)
+			}
+		} else {
+			return
+		}
+
+		if err := downloadFile(workerURL, workerPath); err != nil {
+			failMessage("Failed to download worker.js")
+			log.Printf("%v\n", err)
+			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
+				os.Exit(0)
+			}
+			continue
+		}
+
+		successMessage("Worker downloaded successfully!")
+		return
+	}
+}
+
 func generateRandomString(charSet string, length int, isDomain bool) string {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	randomBytes := make([]byte, length)
@@ -176,7 +203,7 @@ func successMessage(message string) {
 	fmt.Printf("%s %s\n", succMark, message)
 }
 
-func openURL(isAndroid bool, url string) error {
+func openURL(url string) error {
 	var cmd string
 	var args = []string{url}
 
@@ -203,7 +230,7 @@ func openURL(isAndroid bool, url string) error {
 	return nil
 }
 
-func checkBPBPanel(isAndroid bool, url string) error {
+func checkBPBPanel(url string) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -261,7 +288,7 @@ func checkBPBPanel(isAndroid bool, url string) error {
 			return nil
 		}
 
-		if err = openURL(isAndroid, url); err != nil {
+		if err = openURL(url); err != nil {
 			return err
 		}
 
@@ -271,27 +298,30 @@ func checkBPBPanel(isAndroid bool, url string) error {
 	return nil
 }
 
-func runWizard(isAndroid bool) {
+func runWizard() {
 	renderHeader()
 	fmt.Printf("\n%s Welcome to %sBPB Wizard%s!\n", title, green, reset)
 	fmt.Printf("%s This wizard will help you to deploy or modify %sBPB Panel%s on Cloudflare.\n", info, green, reset)
 	fmt.Printf("%s Please make sure you have a verified Cloudflare account.\n\n", info)
 
-	response := promptUser("Please enter 1 to create a panel or 2 to modify an existing panel: ")
-	switch response {
-	case "1":
-		configureBPB(isAndroid)
-		return
-	case "2":
-		modifyBPB(isAndroid)
-		return
-	default:
-		failMessage("Wrong selection, Please choose 1 or 2 only!")
+	for {
+		response := promptUser("Please enter 1 to create a panel or 2 to modify an existing panel: ")
+		switch response {
+		case "1":
+			createPanel()
+			return
+		case "2":
+			modifyPanel()
+			return
+		default:
+			failMessage("Wrong selection, Please choose 1 or 2 only!")
+			continue
+		}
 	}
 }
 
-func configureBPB(isAndroid bool) {
-	go login(isAndroid)
+func createPanel() {
+	go login()
 	token := <-obtainedToken
 	ctx := context.Background()
 	cfClient = NewClient(token)
@@ -342,7 +372,7 @@ func configureBPB(isAndroid bool) {
 		if deployType == DTWorker {
 			isAvailable = isWorkerAvailable(ctx, projectName)
 		} else {
-			isAvailable = isPageAvailable(ctx, projectName)
+			isAvailable = isPagesProjectAvailable(ctx, projectName)
 		}
 
 		if !isAvailable {
@@ -442,28 +472,6 @@ func configureBPB(isAndroid bool) {
 		customDomain = response
 	}
 
-	fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
-	srcPath, err := os.MkdirTemp("", ".bpb-wizard")
-	if err != nil {
-		failMessage("Failed to create temp directory.")
-		log.Fatalln(err)
-	}
-	workerPath := filepath.Join(srcPath, "worker.js")
-	workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
-
-	for {
-		if err = downloadFile(workerURL, workerPath); err != nil {
-			failMessage("Failed to download worker.js")
-			log.Printf("%v\n\n", err)
-			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
-				return
-			}
-			continue
-		}
-		successMessage("Worker downloaded successfully!")
-		break
-	}
-
 	fmt.Printf("\n%s Creating KV namespace...\n", title)
 	var kvNamespace *kv.Namespace
 
@@ -485,13 +493,13 @@ func configureBPB(isAndroid bool) {
 	}
 
 	var panel string
-	cachePath := filepath.Join(srcPath, "tld.cache")
+	downloadWorker()
 
 	switch deployType {
 	case DTWorker:
-		panel, err = deployBPBWorkers(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, workerPath, kvNamespace, customDomain, cachePath)
+		panel, err = deployWorker(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, kvNamespace, customDomain)
 	case DTPage:
-		panel, err = deployBPBPages(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, workerPath, kvNamespace, customDomain)
+		panel, err = deployPagesProject(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, kvNamespace, customDomain)
 	}
 
 	if err != nil {
@@ -499,14 +507,14 @@ func configureBPB(isAndroid bool) {
 		log.Fatalln(err)
 	}
 
-	if err := checkBPBPanel(isAndroid, panel); err != nil {
+	if err := checkBPBPanel(panel); err != nil {
 		failMessage("Failed to checkout BPB panel.")
 		log.Fatalln(err)
 	}
 }
 
-func modifyBPB(isAndroid bool) {
-	go login(isAndroid)
+func modifyPanel() {
+	go login()
 	token := <-obtainedToken
 	ctx := context.Background()
 	cfClient = NewClient(token)
@@ -523,11 +531,7 @@ func modifyBPB(isAndroid bool) {
 	workersList, err := listWorkers(ctx)
 	if err != nil {
 		failMessage("Failed to get workers list.")
-		log.Fatalln(err)
-	}
-
-	if len(workersList) == 0 {
-		failMessage("No workers found.")
+		log.Println(err)
 	} else {
 		for _, worker := range workersList {
 			panels = append(panels, Panel{
@@ -540,11 +544,7 @@ func modifyBPB(isAndroid bool) {
 	pagesList, err := listPages(ctx)
 	if err != nil {
 		failMessage("Failed to get pages list.")
-		log.Fatalln(err)
-	}
-
-	if len(pagesList) == 0 {
-		failMessage("No pages found.")
+		log.Println(err)
 	} else {
 		for _, pages := range pagesList {
 			panels = append(panels, Panel{
@@ -555,7 +555,7 @@ func modifyBPB(isAndroid bool) {
 	}
 
 	if len(panels) == 0 {
-		failMessage("No BPB Panels found, Exiting...")
+		failMessage("No Workers or Pages found, Exiting...")
 		return
 	}
 
@@ -587,40 +587,9 @@ func modifyBPB(isAndroid bool) {
 			switch response {
 			case "1":
 
-				fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
-				srcPath, err := os.MkdirTemp("", ".bpb-wizard")
-				if err != nil {
-					failMessage("Failed to create temp directory.")
-					log.Fatalln(err)
-				}
-
-				workerPath := filepath.Join(srcPath, "worker.js")
-				workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
-
-				for {
-					if _, err := os.Stat(workerPath); err != nil {
-						if !os.IsNotExist(err) {
-							failMessage("Failed to check worker.js")
-							log.Printf("%v", err)
-						}
-					} else {
-						break
-					}
-
-					if err = downloadFile(workerURL, workerPath); err != nil {
-						failMessage("Failed to download worker.js")
-						log.Printf("%v\n\n", err)
-						if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
-							return
-						}
-						continue
-					}
-					successMessage("Worker downloaded successfully!")
-					break
-				}
-
+				downloadWorker()
 				if panelType == "workers" {
-					if err := updateWorker(ctx, panelName, workerPath); err != nil {
+					if err := updateWorker(ctx, panelName); err != nil {
 						failMessage("Failed to update panel.")
 						log.Fatalln(err)
 					}
@@ -629,7 +598,7 @@ func modifyBPB(isAndroid bool) {
 					return
 				}
 
-				if err := updatePagesProject(ctx, panelName, workerPath); err != nil {
+				if err := updatePagesProject(ctx, panelName); err != nil {
 					failMessage("Failed to update panel.")
 					log.Fatalln(err)
 				}
@@ -638,6 +607,7 @@ func modifyBPB(isAndroid bool) {
 				return
 
 			case "2":
+
 				if panelType == "workers" {
 					if err := deleteWorker(ctx, panelName); err != nil {
 						failMessage("Failed to delete panel.")

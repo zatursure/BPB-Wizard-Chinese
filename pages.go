@@ -87,7 +87,7 @@ func (pdp projectDeploymentNewParams) MarshalMultipart() ([]byte, string, error)
 	return body.Bytes(), writer.FormDataContentType(), nil
 }
 
-func createPage(
+func createPagesProject(
 	ctx context.Context,
 	name string,
 	uid string,
@@ -151,8 +151,14 @@ func createPage(
 	return project, nil
 }
 
-func createPageDeployment(ctx context.Context, project *pages.Project, jsPath string) (*pages.Deployment, error) {
-	param := projectDeploymentNewParams{AccountID: cfAccount.ID, Branch: "main", Manifest: "{}", WorkerJS: &multipart.FileHeader{Filename: "worker.js"}, jsPath: jsPath}
+func createPagesDeployment(ctx context.Context, project *pages.Project) (*pages.Deployment, error) {
+	param := projectDeploymentNewParams{
+		AccountID: cfAccount.ID,
+		Branch:    "main",
+		Manifest:  "{}",
+		WorkerJS:  &multipart.FileHeader{Filename: "worker.js"},
+		jsPath:    workerPath,
+	}
 	data, ct, err := param.MarshalMultipart()
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling pages multipart data: %w", err)
@@ -173,7 +179,7 @@ func createPageDeployment(ctx context.Context, project *pages.Project, jsPath st
 	return deployment, nil
 }
 
-func addPagesCustomDomain(ctx context.Context, projectName string, customDomain string) (string, error) {
+func addPagesProjectCustomDomain(ctx context.Context, projectName string, customDomain string) (string, error) {
 	// extractor, err := tldextract.New(cachePath, false)
 	// if err != nil {
 	// 	return "", fmt.Errorf("error extracting TLD: %w", err)
@@ -228,7 +234,7 @@ func addPagesCustomDomain(ctx context.Context, projectName string, customDomain 
 	return res.Name, nil
 }
 
-func isPageAvailable(ctx context.Context, projectName string) bool {
+func isPagesProjectAvailable(ctx context.Context, projectName string) bool {
 	_, err := cfClient.Pages.Projects.Get(ctx, projectName, pages.ProjectGetParams{AccountID: cf.F(cfAccount.ID)})
 	return err != nil
 }
@@ -239,6 +245,10 @@ func listPages(ctx context.Context) ([]string, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing pages projects: %w", err)
+	}
+
+	if len(projects.Result) == 0 {
+		return nil, fmt.Errorf("no pages projects found")
 	}
 
 	var projectNames []string
@@ -267,7 +277,7 @@ func deletePagesProject(ctx context.Context, projectName string) error {
 	return nil
 }
 
-func updatePagesProject(ctx context.Context, projectName string, jsPath string) error {
+func updatePagesProject(ctx context.Context, projectName string) error {
 	project, err := cfClient.Pages.Projects.Get(ctx, projectName, pages.ProjectGetParams{
 		AccountID: cf.F(cfAccount.ID),
 	})
@@ -280,7 +290,7 @@ func updatePagesProject(ctx context.Context, projectName string, jsPath string) 
 		Branch:    "main",
 		Manifest:  "{}",
 		WorkerJS:  &multipart.FileHeader{Filename: "worker.js"},
-		jsPath:    jsPath,
+		jsPath:    workerPath,
 	}
 	data, ct, err := param.MarshalMultipart()
 	if err != nil {
@@ -302,7 +312,7 @@ func updatePagesProject(ctx context.Context, projectName string, jsPath string) 
 	return nil
 }
 
-func deployBPBPages(
+func deployPagesProject(
 	ctx context.Context,
 	name string,
 	uid string,
@@ -310,7 +320,6 @@ func deployBPBPages(
 	proxy string,
 	fallback string,
 	sub string,
-	jsPath string,
 	kvNamespace *kv.Namespace,
 	customDomain string,
 ) (
@@ -323,7 +332,7 @@ func deployBPBPages(
 	for {
 		fmt.Printf("\n%s Creating Pages project...\n", title)
 
-		project, err = createPage(ctx, name, uid, pass, proxy, fallback, sub, kvNamespace)
+		project, err = createPagesProject(ctx, name, uid, pass, proxy, fallback, sub, kvNamespace)
 		if err != nil {
 			failMessage("Failed to create project.")
 			log.Printf("%v\n\n", err)
@@ -340,7 +349,7 @@ func deployBPBPages(
 	for {
 		fmt.Printf("\n%s Deploying Pages project...\n", title)
 
-		_, err = createPageDeployment(ctx, project, jsPath)
+		_, err = createPagesDeployment(ctx, project)
 		if err != nil {
 			failMessage("Failed to deploy project.")
 			log.Printf("%v\n\n", err)
@@ -356,7 +365,7 @@ func deployBPBPages(
 
 	if customDomain != "" {
 		for {
-			recordName, err := addPagesCustomDomain(ctx, name, customDomain)
+			recordName, err := addPagesProjectCustomDomain(ctx, name, customDomain)
 			if err != nil {
 				failMessage("Failed to add custom domain.")
 				log.Printf("%v\n\n", err)

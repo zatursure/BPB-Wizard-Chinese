@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func checkAndroid() bool {
+func checkAndroid() {
 	path := os.Getenv("PATH")
 	if runtime.GOOS == "android" || strings.Contains(path, "com.termux") {
 		prefix := os.Getenv("PREFIX")
@@ -21,10 +21,8 @@ func checkAndroid() bool {
 			failMessage("Failed to set Termux cert file.")
 			log.Fatalln(err)
 		}
-		return true
+		isAndroid = true
 	}
-
-	return false
 }
 
 func setDNS() {
@@ -64,4 +62,16 @@ func renderHeader() {
 		reset+green,
 		version,
 		reset)
+}
+
+func initPaths() {
+	var err error
+	srcPath, err = os.MkdirTemp("", ".bpb-wizard")
+	if err != nil {
+		failMessage("Failed to create temp directory.")
+		log.Fatalln(err)
+	}
+
+	workerPath = filepath.Join(srcPath, "worker.js")
+	cachePath = filepath.Join(srcPath, "tld.cache")
 }
