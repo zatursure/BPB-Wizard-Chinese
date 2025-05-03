@@ -301,11 +301,12 @@ func checkBPBPanel(url string) error {
 func runWizard() {
 	renderHeader()
 	fmt.Printf("\n%s Welcome to %sBPB Wizard%s!\n", title, green, reset)
-	fmt.Printf("%s This wizard will help you to deploy or modify %sBPB Panel%s on Cloudflare.\n", info, green, reset)
-	fmt.Printf("%s Please make sure you have a verified Cloudflare account.\n\n", info)
+	fmt.Printf("%s This wizard will help you to deploy or modify %sBPB Panel%s on Cloudflare.\n", info, blue, reset)
+	fmt.Printf("%s Please make sure you have a verified %sCloudflare%s account.\n\n", info, orange, reset)
 
 	for {
-		response := promptUser("Please enter 1 to create a panel or 2 to modify an existing panel: ")
+		message := fmt.Sprintf("Please enter 1 to %screate%s a new panel or 2 to %smodify%s an existing panel: ", green, reset, red, reset)
+		response := promptUser(message)
 		switch response {
 		case "1":
 			createPanel()
@@ -559,17 +560,17 @@ func modifyPanel() {
 		return
 	}
 
-	message := fmt.Sprintf("Found %d Workers and pages:\n", len(panels))
+	message := fmt.Sprintf("Found %d workers and pages projects:\n", len(panels))
 	successMessage(message)
 	for i, panel := range panels {
-		fmt.Printf(" %d. %s - %s\n", i+1, panel.Name, panel.Type)
+		fmt.Printf(" %s%d.%s %s - %s%s%s\n", blue, i+1, reset, panel.Name, orange, panel.Type, reset)
 	}
 
 	for {
 		var index int
 		for {
 			fmt.Println("")
-			response := promptUser("Please enter the number you want to modify: ")
+			response := promptUser("Please select the number you want to modify: ")
 			index, err = strconv.Atoi(response)
 			if err != nil || index < 1 || index > len(panels) {
 				failMessage("Invalid selection, please try again.")
@@ -582,7 +583,8 @@ func modifyPanel() {
 		panelName := panels[index-1].Name
 		panelType := panels[index-1].Type
 
-		response := promptUser("Please enter 1 to update or 2 to delete panel: ")
+		message := fmt.Sprintf("Please enter 1 to %supdate%s or 2 to %sdelete%s panel: ", green, reset, red, reset)
+		response := promptUser(message)
 		for {
 			switch response {
 			case "1":

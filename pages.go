@@ -266,12 +266,40 @@ func listPages(ctx context.Context) ([]string, error) {
 }
 
 func deletePagesProject(ctx context.Context, projectName string) error {
-	_, err := cfClient.Pages.Projects.Delete(ctx, projectName, pages.ProjectDeleteParams{
+	domains, err := cfClient.Pages.Projects.Domains.List(
+		ctx,
+		projectName,
+		pages.ProjectDomainListParams{AccountID: cf.F(cfAccount.ID)},
+	)
+
+	if err != nil {
+		return fmt.Errorf("error listing project domains: %w", err)
+	}
+
+	if len(domains.Result) > 0 {
+		fmt.Printf("\n%s Detaching custom domains...\n", title)
+		for _, domain := range domains.Result {
+			_, err := cfClient.Pages.Projects.Domains.Delete(
+				ctx,
+				projectName,
+				domain.Name,
+				pages.ProjectDomainDeleteParams{AccountID: cf.F(cfAccount.ID)},
+			)
+			if err != nil {
+				return fmt.Errorf("error detaching custom domain: %w", err)
+			}
+
+			message := fmt.Sprintf("Custom domain %s detached successfully!", domain.Name)
+			successMessage(message)
+		}
+	}
+
+	_, er := cfClient.Pages.Projects.Delete(ctx, projectName, pages.ProjectDeleteParams{
 		AccountID: cf.F(cfAccount.ID),
 	})
 
-	if err != nil {
-		return fmt.Errorf("error deleting pages project: %w", err)
+	if er != nil {
+		return fmt.Errorf("error deleting pages project: %w", er)
 	}
 
 	return nil
