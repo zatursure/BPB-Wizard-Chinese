@@ -75,17 +75,17 @@ func downloadFile(url, dest string) error {
 	return nil
 }
 
-func downloadWorker() {
+func downloadWorker() error {
 	fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
 
 	for {
 		if _, err := os.Stat(workerPath); err != nil {
 			if !os.IsNotExist(err) {
-				failMessage("Failed to check worker.js")
-				log.Fatalln(err)
+				return fmt.Errorf("failed to check worker.js: %w", err)
 			}
 		} else {
-			return
+			successMessage("worker.js already exists, skipping download.")
+			return nil
 		}
 
 		if err := downloadFile(workerURL, workerPath); err != nil {
@@ -97,8 +97,7 @@ func downloadWorker() {
 			continue
 		}
 
-		successMessage("Worker downloaded successfully!")
-		return
+		return nil
 	}
 }
 
@@ -179,7 +178,14 @@ func isValidSubURIPath(uri string) bool {
 func promptUser(prompt string) string {
 	fmt.Printf("%s %s", ask, prompt)
 	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println("\nExiting...")
+		if err == io.EOF {
+			os.Exit(0)
+		}
+		os.Exit(1)
+	}
 
 	return strings.TrimSpace(input)
 }
@@ -306,7 +312,7 @@ func runWizard() {
 			modifyPanel()
 			return
 		default:
-			failMessage("Wrong selection, Please choose 1 or 2 only!")
+			failMessage("Wrong selection, Please choose 1 or 2 only!\n")
 			continue
 		}
 	}
@@ -388,7 +394,6 @@ func createPanel() {
 			}
 
 			uid = response
-			break
 		}
 
 		break
@@ -404,7 +409,6 @@ func createPanel() {
 			}
 
 			trPass = response
-			break
 		}
 
 		break
@@ -430,7 +434,6 @@ func createPanel() {
 			}
 
 			proxyIP = response
-			break
 		}
 
 		break
@@ -452,7 +455,6 @@ func createPanel() {
 			}
 
 			subPath = response
-			break
 		}
 
 		break
@@ -485,7 +487,10 @@ func createPanel() {
 	}
 
 	var panel string
-	downloadWorker()
+	if err := downloadWorker(); err != nil {
+		failMessage("Failed to download worker.js")
+		log.Fatalln(err)
+	}
 
 	switch deployType {
 	case DTWorker:
@@ -582,7 +587,11 @@ func modifyPanel() {
 			switch response {
 			case "1":
 
-				downloadWorker()
+				if err := downloadWorker(); err != nil {
+					failMessage("Failed to download worker.js")
+					log.Fatalln(err)
+				}
+
 				if panelType == "workers" {
 					if err := updateWorker(ctx, panelName); err != nil {
 						failMessage("Failed to update panel.")
