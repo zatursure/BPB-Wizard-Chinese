@@ -49,6 +49,7 @@ const (
 	CharsetTrojanPassword    = CharsetAlphaNumeric + CharsetSpecialCharacters
 	CharsetSubDomain         = "abcdefghijklmnopqrstuvwxyz0123456789-"
 	CharsetURIPath           = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$&*_-+;:,."
+	DomainRegex              = `^(?i)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`
 )
 
 func downloadFile(url, dest string) error {
@@ -143,8 +144,27 @@ func isValidIpDomain(value string) bool {
 		return true
 	}
 
-	domainRegex := regexp.MustCompile(`^(?i)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`)
+	domainRegex := regexp.MustCompile(DomainRegex)
 	return domainRegex.MatchString(value)
+}
+
+func isValidHost(value string) bool {
+	host, port, err := net.SplitHostPort(value)
+	if err != nil {
+		return false
+	}
+
+	domainRegex := regexp.MustCompile(DomainRegex)
+	if net.ParseIP(host) == nil && !domainRegex.MatchString(host) {
+		return false
+	}
+
+	intPort, err := strconv.Atoi(port)
+	if err != nil || intPort < 1 || intPort > 65535 {
+		return false
+	}
+
+	return true
 }
 
 func generateTrPassword(passwordLength int) string {
@@ -422,9 +442,9 @@ func createPanel() {
 			values := strings.SplitSeq(response, ",")
 			for v := range values {
 				trimmedValue := strings.TrimSpace(v)
-				if !isValidIpDomain(trimmedValue) {
+				if !isValidIpDomain(trimmedValue) && !isValidHost(trimmedValue) {
 					areValid = false
-					message := fmt.Sprintf("%s is not a valid IP or Domain. Please try again.\n", trimmedValue)
+					message := fmt.Sprintf("%s is not a valid IP or Domain. Please try again.", trimmedValue)
 					failMessage(message)
 				}
 			}
