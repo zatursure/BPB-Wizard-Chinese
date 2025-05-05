@@ -109,6 +109,7 @@ func createPagesProject(
 				ProductionBranch: cf.F("main"),
 				DeploymentConfigs: cf.F(pages.ProjectDeploymentConfigsParam{
 					Production: cf.F(pages.ProjectDeploymentConfigsProductionParam{
+						Browsers:           cf.F(map[string]pages.ProjectDeploymentConfigsProductionBrowserParam{}),
 						CompatibilityDate:  cf.F(time.Now().AddDate(0, 0, -1).Format("2006-01-02")),
 						CompatibilityFlags: cf.F([]string{"nodejs_compat"}),
 						KVNamespaces: cf.F(map[string]pages.ProjectDeploymentConfigsProductionKVNamespaceParam{
@@ -116,7 +117,6 @@ func createPagesProject(
 								NamespaceID: cf.F(kv.ID),
 							},
 						}),
-						Services: cf.F(map[string]pages.ProjectDeploymentConfigsProductionServiceParam{}),
 						EnvVars: cf.F(map[string]pages.ProjectDeploymentConfigsProductionEnvVarsUnionParam{
 							"UUID": pages.ProjectDeploymentConfigsProductionEnvVarsPagesPlainTextEnvVarParam{
 								Type:  cf.F(pages.ProjectDeploymentConfigsProductionEnvVarsPagesPlainTextEnvVarTypePlainText),

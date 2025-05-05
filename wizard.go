@@ -98,6 +98,7 @@ func downloadWorker() error {
 			continue
 		}
 
+		successMessage("worker.js downloaded successfully!")
 		return nil
 	}
 }
@@ -200,7 +201,7 @@ func promptUser(prompt string) string {
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Println("\nExiting...")
+		fmt.Printf("\n%s Exiting...", title)
 		if err == io.EOF {
 			os.Exit(0)
 		}
@@ -327,28 +328,34 @@ func runWizard() {
 		switch response {
 		case "1":
 			createPanel()
-			return
 		case "2":
 			modifyPanel()
-			return
 		default:
 			failMessage("Wrong selection, Please choose 1 or 2 only!\n")
 			continue
+		}
+
+		res := promptUser("Would you like to run the wizard again? (y/n): ")
+		if strings.ToLower(res) == "n" {
+			fmt.Printf("\n%s Exiting...\n", title)
+			return
 		}
 	}
 }
 
 func createPanel() {
-	go login()
-	token := <-obtainedToken
 	ctx := context.Background()
-	cfClient = NewClient(token)
 	var err error
+	if cfClient == nil || cfAccount == nil {
+		go login()
+		token := <-obtainedToken
+		cfClient = NewClient(token)
 
-	cfAccount, err = getAccount(ctx)
-	if err != nil {
-		failMessage("Failed to get Cloudflare account.")
-		log.Fatalln(err)
+		cfAccount, err = getAccount(ctx)
+		if err != nil {
+			failMessage("Failed to get Cloudflare account.")
+			log.Fatalln(err)
+		}
 	}
 
 	fmt.Printf("\n%s Get settings...\n", title)
@@ -531,16 +538,18 @@ func createPanel() {
 }
 
 func modifyPanel() {
-	go login()
-	token := <-obtainedToken
 	ctx := context.Background()
-	cfClient = NewClient(token)
 	var err error
+	if cfClient == nil || cfAccount == nil {
+		go login()
+		token := <-obtainedToken
+		cfClient = NewClient(token)
 
-	cfAccount, err = getAccount(ctx)
-	if err != nil {
-		failMessage("Failed to get Cloudflare account.")
-		log.Fatalln(err)
+		cfAccount, err = getAccount(ctx)
+		if err != nil {
+			failMessage("Failed to get Cloudflare account.")
+			log.Fatalln(err)
+		}
 	}
 
 	for {
