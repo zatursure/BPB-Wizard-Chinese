@@ -133,7 +133,7 @@ func (sp ScriptUpdateParams) MarshalMultipart() ([]byte, string, error) {
 	return body.Bytes(), writer.FormDataContentType(), nil
 }
 
-func createWorker(ctx context.Context, name string, uid string, pass string, proxy string, fallback string, sub string, jsPath string, kv *kv.Namespace) (*workers.ScriptUpdateResponse, error) {
+func createWorker(ctx context.Context, name string, uid string, pass string, proxy string, fallback string, sub string, kv *kv.Namespace) (*workers.ScriptUpdateResponse, error) {
 	param := ScriptUpdateParams{
 		AccountID: cfAccount.ID,
 		Metadata: ScriptUpdateParamsMetadataForm{
@@ -170,7 +170,7 @@ func createWorker(ctx context.Context, name string, uid string, pass string, pro
 				},
 			},
 			MainModule:        "worker.js",
-			jsPath:            jsPath,
+			jsPath:            workerPath,
 			CompatibilityDate: time.Now().AddDate(0, 0, -1).Format("2006-01-02"),
 			CompatibilityFlags: []string{
 				"nodejs_compat",
@@ -224,7 +224,7 @@ func enableWorkerSubdomain(ctx context.Context, name string) (*workers.ScriptSub
 		})
 }
 
-func addWorkersCustomDomain(ctx context.Context, script string, customDomain string, cachePath string) (string, error) {
+func addWorkerCustomDomain(ctx context.Context, script string, customDomain string) (string, error) {
 	extractor, err := tldextract.New(cachePath, false)
 	if err != nil {
 		return "", fmt.Errorf("error extracting TLD: %w", err)
@@ -266,7 +266,72 @@ func isWorkerAvailable(ctx context.Context, name string) bool {
 	return err != nil
 }
 
-func deployBPBWorkers(
+func listWorkers(ctx context.Context) ([]string, error) {
+	workersList, err := cfClient.Workers.Scripts.List(ctx, workers.ScriptListParams{AccountID: cf.F(cfAccount.ID)})
+	if err != nil {
+		return nil, fmt.Errorf("error listing workers: %w", err)
+	}
+
+	if len(workersList.Result) == 0 {
+		return nil, fmt.Errorf("no workers found")
+	}
+
+	var workerNames []string
+	for _, worker := range workersList.Result {
+		workerNames = append(workerNames, worker.ID)
+	}
+
+	return workerNames, nil
+}
+
+func deleteWorker(ctx context.Context, name string) error {
+	err := cfClient.Workers.Scripts.Delete(ctx, name, workers.ScriptDeleteParams{
+		AccountID: cf.F(cfAccount.ID),
+		Force:     cf.F(true),
+	})
+	if err != nil {
+		return fmt.Errorf("error deleting worker: %w", err)
+	}
+
+	return nil
+}
+
+func updateWorker(ctx context.Context, name string) error {
+	param := ScriptUpdateParams{
+		AccountID: cfAccount.ID,
+		Metadata: ScriptUpdateParamsMetadataForm{
+			MainModule: "worker.js",
+			jsPath:     workerPath,
+		},
+	}
+
+	data, ct, err := param.MarshalMultipart()
+	r := bytes.NewBuffer(data)
+	if err != nil {
+		return fmt.Errorf("error marshalling multipart data: %w", err)
+	}
+
+	_, er := cfClient.Workers.Scripts.Content.Update(
+		ctx,
+		name,
+		workers.ScriptContentUpdateParams{
+			AccountID: cf.F(cfAccount.ID),
+			Metadata: cf.F(workers.WorkerMetadataParam{
+				MainModule: cf.F("worker.js"),
+				BodyPart:   cf.F(ct),
+			}),
+		},
+		option.WithRequestBody(ct, r),
+		option.WithHeader("Content-Type", ct),
+	)
+	if er != nil {
+		return fmt.Errorf("error updating worker script: %w", er)
+	}
+
+	return nil
+}
+
+func deployWorker(
 	ctx context.Context,
 	name string,
 	uid string,
@@ -274,10 +339,8 @@ func deployBPBWorkers(
 	proxy string,
 	fallback string,
 	sub string,
-	jsPath string,
 	kvNamespace *kv.Namespace,
 	customDomain string,
-	cachePath string,
 ) (
 	panelURL string,
 	err error,
@@ -285,7 +348,7 @@ func deployBPBWorkers(
 	for {
 		fmt.Printf("\n%s Creating Worker...\n", title)
 
-		_, err := createWorker(ctx, name, uid, pass, proxy, fallback, sub, jsPath, kvNamespace)
+		_, err := createWorker(ctx, name, uid, pass, proxy, fallback, sub, kvNamespace)
 		if err != nil {
 			failMessage("Failed to deploy worker.")
 			log.Printf("%v\n\n", err)
@@ -316,7 +379,7 @@ func deployBPBWorkers(
 
 	if customDomain != "" {
 		for {
-			_, err := addWorkersCustomDomain(ctx, name, customDomain, cachePath)
+			_, err := addWorkerCustomDomain(ctx, name, customDomain)
 			if err != nil {
 				failMessage("Failed to add custom domain.")
 				log.Printf("%v\n\n", err)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -11,24 +12,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cloudflare/cloudflare-go/v4/kv"
 	"github.com/google/uuid"
-)
-
-const (
-	red    = "\033[31m"
-	green  = "\033[32m"
-	reset  = "\033[0m"
-	orange = "\033[38;2;255;165;0m"
-	blue   = "\033[94m"
-	bold   = "\033[1m"
-	title  = bold + blue + "●" + reset
-	ask    = bold + "-" + reset
-	info   = bold + "+" + reset
 )
 
 type DeployType int
@@ -46,6 +37,20 @@ var DeployTypeNames = map[DeployType]string{
 func (dt DeployType) String() string {
 	return DeployTypeNames[dt]
 }
+
+type Panel struct {
+	Name string
+	Type string
+}
+
+const (
+	CharsetAlphaNumeric      = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	CharsetSpecialCharacters = "!@#$%^&*()_+[]{}|;:',.<>?"
+	CharsetTrojanPassword    = CharsetAlphaNumeric + CharsetSpecialCharacters
+	CharsetSubDomain         = "abcdefghijklmnopqrstuvwxyz0123456789-"
+	CharsetURIPath           = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$&*_-+;:,."
+	DomainRegex              = `^(?i)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$`
+)
 
 func downloadFile(url, dest string) error {
 	resp, err := http.Get(url)
@@ -71,6 +76,33 @@ func downloadFile(url, dest string) error {
 	return nil
 }
 
+func downloadWorker() error {
+	fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
+
+	for {
+		if _, err := os.Stat(workerPath); err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("failed to check worker.js: %w", err)
+			}
+		} else {
+			successMessage("worker.js already exists, skipping download.")
+			return nil
+		}
+
+		if err := downloadFile(workerURL, workerPath); err != nil {
+			failMessage("Failed to download worker.js")
+			log.Printf("%v\n", err)
+			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
+				os.Exit(0)
+			}
+			continue
+		}
+
+		successMessage("worker.js downloaded successfully!")
+		return nil
+	}
+}
+
 func generateRandomString(charSet string, length int, isDomain bool) string {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	randomBytes := make([]byte, length)
@@ -89,27 +121,94 @@ func generateRandomString(charSet string, length int, isDomain bool) string {
 	return string(randomBytes)
 }
 
-func generateRandomDomain(subDomainLength int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789-"
-	return generateRandomString(charset, subDomainLength, true)
+func generateRandomSubDomain(subDomainLength int) string {
+	return generateRandomString(CharsetSubDomain, subDomainLength, true)
+}
+
+func isValidSubDomain(subDomain string) error {
+	if strings.Contains(subDomain, "bpb") {
+		message := fmt.Sprintf("Name cannot contain %sbpb%s. Please try again.\n", red, reset)
+		return fmt.Errorf("%s", message)
+	}
+
+	subdomainRegex := regexp.MustCompile(`^(?i)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+	isValid := subdomainRegex.MatchString(subDomain)
+	if !isValid {
+		message := fmt.Sprintf("Subdomain cannot start with %s-%s and should only contain %sA-Z%s and %s0-9%s. Please try again.\n", red, reset, green, reset, green, reset)
+		return fmt.Errorf("%s", message)
+	}
+	return nil
+}
+
+func isValidIpDomain(value string) bool {
+	if net.ParseIP(value) != nil {
+		return true
+	}
+
+	domainRegex := regexp.MustCompile(DomainRegex)
+	return domainRegex.MatchString(value)
+}
+
+func isValidHost(value string) bool {
+	host, port, err := net.SplitHostPort(value)
+	if err != nil {
+		return false
+	}
+
+	domainRegex := regexp.MustCompile(DomainRegex)
+	if net.ParseIP(host) == nil && !domainRegex.MatchString(host) {
+		return false
+	}
+
+	intPort, err := strconv.Atoi(port)
+	if err != nil || intPort < 1 || intPort > 65535 {
+		return false
+	}
+
+	return true
 }
 
 func generateTrPassword(passwordLength int) string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:',.<>?"
-	return generateRandomString(charset, passwordLength, false)
+	return generateRandomString(CharsetTrojanPassword, passwordLength, false)
+}
+
+func isValidTrPassword(trojanPassword string) bool {
+	for _, c := range trojanPassword {
+		if !strings.ContainsRune(CharsetTrojanPassword, c) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func generateSubURIPath(uriLength int) string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$&*_-+;:,."
-	return generateRandomString(charset, uriLength, false)
+	return generateRandomString(CharsetURIPath, uriLength, false)
+}
+
+func isValidSubURIPath(uri string) bool {
+	for _, c := range uri {
+		if !strings.ContainsRune(CharsetURIPath, c) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func promptUser(prompt string) string {
 	fmt.Printf("%s %s", ask, prompt)
-	var response string
-	fmt.Scanln(&response)
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Printf("\n%s Exiting...", title)
+		if err == io.EOF {
+			os.Exit(0)
+		}
+		os.Exit(1)
+	}
 
-	return strings.TrimSpace(response)
+	return strings.TrimSpace(input)
 }
 
 func failMessage(message string) {
@@ -122,7 +221,7 @@ func successMessage(message string) {
 	fmt.Printf("%s %s\n", succMark, message)
 }
 
-func openURL(isAndroid bool, url string) error {
+func openURL(url string) error {
 	var cmd string
 	var args = []string{url}
 
@@ -149,7 +248,7 @@ func openURL(isAndroid bool, url string) error {
 	return nil
 }
 
-func checkBPBPanel(isAndroid bool, url string) error {
+func checkBPBPanel(url string) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -207,7 +306,7 @@ func checkBPBPanel(isAndroid bool, url string) error {
 			return nil
 		}
 
-		if err = openURL(isAndroid, url); err != nil {
+		if err = openURL(url); err != nil {
 			return err
 		}
 
@@ -217,23 +316,46 @@ func checkBPBPanel(isAndroid bool, url string) error {
 	return nil
 }
 
-func configureBPB(isAndroid bool) {
-	token := <-obtainedToken
-	ctx := context.Background()
-	cfClient = NewClient(token)
-	var err error
+func runWizard() {
+	renderHeader()
+	fmt.Printf("\n%s Welcome to %sBPB Wizard%s!\n", title, green, reset)
+	fmt.Printf("%s This wizard will help you to deploy or modify %sBPB Panel%s on Cloudflare.\n", info, blue, reset)
+	fmt.Printf("%s Please make sure you have a verified %sCloudflare%s account.\n\n", info, orange, reset)
 
-	cfAccount, err = getAccount(ctx)
-	if err != nil {
-		failMessage("Failed to get Cloudflare account.")
-		log.Fatalln(err)
+	for {
+		message := fmt.Sprintf("Please enter 1 to %screate%s a new panel or 2 to %smodify%s an existing panel: ", green, reset, red, reset)
+		response := promptUser(message)
+		switch response {
+		case "1":
+			createPanel()
+		case "2":
+			modifyPanel()
+		default:
+			failMessage("Wrong selection, Please choose 1 or 2 only!\n")
+			continue
+		}
+
+		res := promptUser("Would you like to run the wizard again? (y/n): ")
+		if strings.ToLower(res) == "n" {
+			fmt.Printf("\n%s Exiting...\n", title)
+			return
+		}
 	}
+}
 
-	srcPath, err := os.MkdirTemp("", ".bpb-wizard")
-	workerURL := "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
-	if err != nil {
-		failMessage("Failed to create temp directory.")
-		log.Fatalln(err)
+func createPanel() {
+	ctx := context.Background()
+	var err error
+	if cfClient == nil || cfAccount == nil {
+		go login()
+		token := <-obtainedToken
+		cfClient = NewClient(token)
+
+		cfAccount, err = getAccount(ctx)
+		if err != nil {
+			failMessage("Failed to get Cloudflare account.")
+			log.Fatalln(err)
+		}
 	}
 
 	fmt.Printf("\n%s Get settings...\n", title)
@@ -258,12 +380,11 @@ func configureBPB(isAndroid bool) {
 
 	var projectName string
 	for {
-		projectName = generateRandomDomain(32)
+		projectName = generateRandomSubDomain(32)
 		fmt.Printf("\n%s The random generated name (%sSubdomain%s) is: %s%s%s\n", info, green, reset, orange, projectName, reset)
 		if response := promptUser("Please enter a custom name or press ENTER to use generated one: "); response != "" {
-			if strings.Contains(strings.ToLower(response), "bpb") {
-				message := fmt.Sprintf("Name cannot contain %sbpb%s! Please try another name.", red, reset)
-				failMessage(message)
+			if err := isValidSubDomain(response); err != nil {
+				failMessage(err.Error())
 				continue
 			}
 
@@ -276,7 +397,7 @@ func configureBPB(isAndroid bool) {
 		if deployType == DTWorker {
 			isAvailable = isWorkerAvailable(ctx, projectName)
 		} else {
-			isAvailable = isPageAvailable(ctx, projectName)
+			isAvailable = isPagesProjectAvailable(ctx, projectName)
 		}
 
 		if !isAvailable {
@@ -292,20 +413,57 @@ func configureBPB(isAndroid bool) {
 
 	uid := uuid.NewString()
 	fmt.Printf("\n%s The random generated %sUUID%s is: %s%s%s\n", info, green, reset, orange, uid, reset)
-	if response := promptUser("Please enter a custom uid or press ENTER to use generated one: "); response != "" {
-		uid = response
+	for {
+		if response := promptUser("Please enter a custom uid or press ENTER to use generated one: "); response != "" {
+			if _, err := uuid.Parse(response); err != nil {
+				failMessage("UUID is not standard, please try again.\n")
+				continue
+			}
+
+			uid = response
+		}
+
+		break
 	}
 
 	trPass := generateTrPassword(12)
 	fmt.Printf("\n%s The random generated %sTrojan password%s is: %s%s%s\n", info, green, reset, orange, trPass, reset)
-	if response := promptUser("Please enter a custom Trojan password or press ENTER to use generated one: "); response != "" {
-		trPass = response
+	for {
+		if response := promptUser("Please enter a custom Trojan password or press ENTER to use generated one: "); response != "" {
+			if !isValidTrPassword(response) {
+				failMessage("Trojan password cannot contain none standard character! Please try again.\n")
+				continue
+			}
+
+			trPass = response
+		}
+
+		break
 	}
 
 	proxyIP := "bpb.yousef.isegaro.com"
 	fmt.Printf("\n%s The default %sProxy IP%s is: %s%s%s\n", info, green, reset, orange, proxyIP, reset)
-	if response := promptUser("Please enter custom Proxy IP/Domains or press ENTER to use default: "); response != "" {
-		proxyIP = response
+	for {
+		if response := promptUser("Please enter custom Proxy IP/Domains or press ENTER to use default: "); response != "" {
+			areValid := true
+			values := strings.SplitSeq(response, ",")
+			for v := range values {
+				trimmedValue := strings.TrimSpace(v)
+				if !isValidIpDomain(trimmedValue) && !isValidHost(trimmedValue) {
+					areValid = false
+					message := fmt.Sprintf("%s is not a valid IP or Domain. Please try again.", trimmedValue)
+					failMessage(message)
+				}
+			}
+
+			if !areValid {
+				continue
+			}
+
+			proxyIP = response
+		}
+
+		break
 	}
 
 	fallback := "speed.cloudflare.com"
@@ -316,30 +474,23 @@ func configureBPB(isAndroid bool) {
 
 	subPath := generateSubURIPath(16)
 	fmt.Printf("\n%s The random generated %sSubscription path%s is: %s%s%s\n", info, green, reset, orange, subPath, reset)
-	if response := promptUser("Please enter a custom Subscription path or press ENTER to use generated one: "); response != "" {
-		subPath = response
+	for {
+		if response := promptUser("Please enter a custom Subscription path or press ENTER to use generated one: "); response != "" {
+			if !isValidSubURIPath(response) {
+				failMessage("URI cannot contain none standard character! Please try again.\n")
+				continue
+			}
+
+			subPath = response
+		}
+
+		break
 	}
 
 	var customDomain string
 	fmt.Printf("\n%s You can set %sCustom domain%s ONLY if you registered domain on this cloudflare account.\n", info, green, reset)
 	if response := promptUser("Please enter a custom domain (if you have any) or press ENTER to ignore: "); response != "" {
 		customDomain = response
-	}
-
-	fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
-	workerPath := filepath.Join(srcPath, "worker.js")
-
-	for {
-		if err = downloadFile(workerURL, workerPath); err != nil {
-			failMessage("Failed to download worker.js")
-			log.Printf("%v\n\n", err)
-			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
-				return
-			}
-			continue
-		}
-		successMessage("Worker downloaded successfully!")
-		break
 	}
 
 	fmt.Printf("\n%s Creating KV namespace...\n", title)
@@ -363,13 +514,16 @@ func configureBPB(isAndroid bool) {
 	}
 
 	var panel string
-	cachePath := filepath.Join(srcPath, "tld.cache")
+	if err := downloadWorker(); err != nil {
+		failMessage("Failed to download worker.js")
+		log.Fatalln(err)
+	}
 
 	switch deployType {
 	case DTWorker:
-		panel, err = deployBPBWorkers(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, workerPath, kvNamespace, customDomain, cachePath)
+		panel, err = deployWorker(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, kvNamespace, customDomain)
 	case DTPage:
-		panel, err = deployBPBPages(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, workerPath, kvNamespace, customDomain)
+		panel, err = deployPagesProject(ctx, projectName, uid, trPass, proxyIP, fallback, subPath, kvNamespace, customDomain)
 	}
 
 	if err != nil {
@@ -377,8 +531,142 @@ func configureBPB(isAndroid bool) {
 		log.Fatalln(err)
 	}
 
-	if err := checkBPBPanel(isAndroid, panel); err != nil {
+	if err := checkBPBPanel(panel); err != nil {
 		failMessage("Failed to checkout BPB panel.")
 		log.Fatalln(err)
+	}
+}
+
+func modifyPanel() {
+	ctx := context.Background()
+	var err error
+	if cfClient == nil || cfAccount == nil {
+		go login()
+		token := <-obtainedToken
+		cfClient = NewClient(token)
+
+		cfAccount, err = getAccount(ctx)
+		if err != nil {
+			failMessage("Failed to get Cloudflare account.")
+			log.Fatalln(err)
+		}
+	}
+
+	for {
+		var panels []Panel
+		var message string
+
+		fmt.Printf("\n%s Getting panels list...\n", title)
+		workersList, err := listWorkers(ctx)
+		if err != nil {
+			failMessage("Failed to get workers list.")
+			log.Println(err)
+		} else {
+			for _, worker := range workersList {
+				panels = append(panels, Panel{
+					Name: worker,
+					Type: "workers",
+				})
+			}
+		}
+
+		pagesList, err := listPages(ctx)
+		if err != nil {
+			failMessage("Failed to get pages list.")
+			log.Println(err)
+		} else {
+			for _, pages := range pagesList {
+				panels = append(panels, Panel{
+					Name: pages,
+					Type: "pages",
+				})
+			}
+		}
+
+		if len(panels) == 0 {
+			failMessage("No Workers or Pages found, Exiting...")
+			return
+		}
+
+		message = fmt.Sprintf("Found %d workers and pages projects:\n", len(panels))
+		successMessage(message)
+		for i, panel := range panels {
+			fmt.Printf(" %s%d.%s %s - %s%s%s\n", blue, i+1, reset, panel.Name, orange, panel.Type, reset)
+		}
+
+		var index int
+		for {
+			fmt.Println("")
+			response := promptUser("Please select the number you want to modify: ")
+			index, err = strconv.Atoi(response)
+			if err != nil || index < 1 || index > len(panels) {
+				failMessage("Invalid selection, please try again.")
+				continue
+			}
+
+			break
+		}
+
+		panelName := panels[index-1].Name
+		panelType := panels[index-1].Type
+
+		message = fmt.Sprintf("Please enter 1 to %supdate%s or 2 to %sdelete%s panel: ", green, reset, red, reset)
+		response := promptUser(message)
+		for {
+			switch response {
+			case "1":
+
+				if err := downloadWorker(); err != nil {
+					failMessage("Failed to download worker.js")
+					log.Fatalln(err)
+				}
+
+				if panelType == "workers" {
+					if err := updateWorker(ctx, panelName); err != nil {
+						failMessage("Failed to update panel.")
+						log.Fatalln(err)
+					}
+
+					successMessage("Panel updated successfully!\n")
+					break
+				}
+
+				if err := updatePagesProject(ctx, panelName); err != nil {
+					failMessage("Failed to update panel.")
+					log.Fatalln(err)
+				}
+
+				successMessage("Panel updated successfully!\n")
+
+			case "2":
+
+				if panelType == "workers" {
+					if err := deleteWorker(ctx, panelName); err != nil {
+						failMessage("Failed to delete panel.")
+						log.Fatalln(err)
+					}
+
+					successMessage("Panel deleted successfully!\n")
+					break
+				}
+
+				if err := deletePagesProject(ctx, panelName); err != nil {
+					failMessage("Failed to delete panel.")
+					log.Fatalln(err)
+				}
+
+				successMessage("Panel deleted successfully!\n")
+
+			default:
+				failMessage("Wrong selection, Please choose 1 or 2 only!")
+				continue
+			}
+
+			break
+		}
+
+		if response := promptUser("Would you like to modify another panel? (y/n): "); strings.ToLower(response) == "n" {
+			break
+		}
 	}
 }

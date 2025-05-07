@@ -36,7 +36,7 @@ var (
 		Scopes: []string{
 			"account:read", "user:read", "workers:write", "workers_kv:write",
 			"workers_routes:write", "workers_scripts:write", "workers_tail:read",
-			"d1:write", "pages:write", "zone:read", "ssl_certs:write",
+			"d1:write", "pages:write", "pages:read", "zone:read", "ssl_certs:write",
 			"ai:write", "queues:write", "pipelines:write", "secrets_store:write",
 		},
 	}
@@ -94,11 +94,11 @@ func generateCodeChallenge(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(hash[:])
 }
 
-func login(isAndroid bool) {
+func login() {
 	url := generateAuthURL()
 	fmt.Printf("\n%s Login %sCloudflare%s...\n", title, orange, reset)
 
-	if err := openURL(isAndroid, url); err != nil {
+	if err := openURL(url); err != nil {
 		failMessage("Failed to login.")
 		log.Fatalln(err)
 	}

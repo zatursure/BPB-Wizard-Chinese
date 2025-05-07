@@ -15,4 +15,4 @@
 !RELEASE.md
 !assets
 !assets/**
-!initiate.go
+!init.go

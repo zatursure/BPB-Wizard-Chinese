@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -86,7 +87,7 @@ func (pdp projectDeploymentNewParams) MarshalMultipart() ([]byte, string, error)
 	return body.Bytes(), writer.FormDataContentType(), nil
 }
 
-func createPage(
+func createPagesProject(
 	ctx context.Context,
 	name string,
 	uid string,
@@ -108,6 +109,7 @@ func createPage(
 				ProductionBranch: cf.F("main"),
 				DeploymentConfigs: cf.F(pages.ProjectDeploymentConfigsParam{
 					Production: cf.F(pages.ProjectDeploymentConfigsProductionParam{
+						Browsers:           cf.F(map[string]pages.ProjectDeploymentConfigsProductionBrowserParam{}),
 						CompatibilityDate:  cf.F(time.Now().AddDate(0, 0, -1).Format("2006-01-02")),
 						CompatibilityFlags: cf.F([]string{"nodejs_compat"}),
 						KVNamespaces: cf.F(map[string]pages.ProjectDeploymentConfigsProductionKVNamespaceParam{
@@ -115,7 +117,6 @@ func createPage(
 								NamespaceID: cf.F(kv.ID),
 							},
 						}),
-						Services: cf.F(map[string]pages.ProjectDeploymentConfigsProductionServiceParam{}),
 						EnvVars: cf.F(map[string]pages.ProjectDeploymentConfigsProductionEnvVarsUnionParam{
 							"UUID": pages.ProjectDeploymentConfigsProductionEnvVarsPagesPlainTextEnvVarParam{
 								Type:  cf.F(pages.ProjectDeploymentConfigsProductionEnvVarsPagesPlainTextEnvVarTypePlainText),
@@ -150,8 +151,14 @@ func createPage(
 	return project, nil
 }
 
-func createPageDeployment(ctx context.Context, project *pages.Project, jsPath string) (*pages.Deployment, error) {
-	param := projectDeploymentNewParams{AccountID: cfAccount.ID, Branch: "main", Manifest: "{}", WorkerJS: &multipart.FileHeader{Filename: "worker.js"}, jsPath: jsPath}
+func createPagesDeployment(ctx context.Context, project *pages.Project) (*pages.Deployment, error) {
+	param := projectDeploymentNewParams{
+		AccountID: cfAccount.ID,
+		Branch:    "main",
+		Manifest:  "{}",
+		WorkerJS:  &multipart.FileHeader{Filename: "worker.js"},
+		jsPath:    workerPath,
+	}
 	data, ct, err := param.MarshalMultipart()
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling pages multipart data: %w", err)
@@ -172,7 +179,7 @@ func createPageDeployment(ctx context.Context, project *pages.Project, jsPath st
 	return deployment, nil
 }
 
-func addPagesCustomDomain(ctx context.Context, projectName string, customDomain string) (string, error) {
+func addPagesProjectCustomDomain(ctx context.Context, projectName string, customDomain string) (string, error) {
 	// extractor, err := tldextract.New(cachePath, false)
 	// if err != nil {
 	// 	return "", fmt.Errorf("error extracting TLD: %w", err)
@@ -227,12 +234,113 @@ func addPagesCustomDomain(ctx context.Context, projectName string, customDomain 
 	return res.Name, nil
 }
 
-func isPageAvailable(ctx context.Context, projectName string) bool {
+func isPagesProjectAvailable(ctx context.Context, projectName string) bool {
 	_, err := cfClient.Pages.Projects.Get(ctx, projectName, pages.ProjectGetParams{AccountID: cf.F(cfAccount.ID)})
 	return err != nil
 }
 
-func deployBPBPages(
+func listPages(ctx context.Context) ([]string, error) {
+	projects, err := cfClient.Pages.Projects.List(ctx, pages.ProjectListParams{
+		AccountID: cf.F(cfAccount.ID),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing pages projects: %w", err)
+	}
+
+	if len(projects.Result) == 0 {
+		return nil, fmt.Errorf("no pages projects found")
+	}
+
+	var projectNames []string
+	for _, project := range projects.Result {
+		rawName := project.JSON.ExtraFields["name"].Raw()
+		var name string
+		if err := json.Unmarshal([]byte(rawName), &name); err != nil {
+			return nil, fmt.Errorf("error unmarshalling project name: %w", err)
+		}
+
+		projectNames = append(projectNames, name)
+	}
+
+	return projectNames, nil
+}
+
+func deletePagesProject(ctx context.Context, projectName string) error {
+	domains, err := cfClient.Pages.Projects.Domains.List(
+		ctx,
+		projectName,
+		pages.ProjectDomainListParams{AccountID: cf.F(cfAccount.ID)},
+	)
+
+	if err != nil {
+		return fmt.Errorf("error listing project domains: %w", err)
+	}
+
+	if len(domains.Result) > 0 {
+		fmt.Printf("\n%s Detaching custom domains...\n", title)
+		for _, domain := range domains.Result {
+			_, err := cfClient.Pages.Projects.Domains.Delete(
+				ctx,
+				projectName,
+				domain.Name,
+				pages.ProjectDomainDeleteParams{AccountID: cf.F(cfAccount.ID)},
+			)
+			if err != nil {
+				return fmt.Errorf("error detaching custom domain: %w", err)
+			}
+
+			message := fmt.Sprintf("Custom domain %s detached successfully!", domain.Name)
+			successMessage(message)
+		}
+	}
+
+	_, er := cfClient.Pages.Projects.Delete(ctx, projectName, pages.ProjectDeleteParams{
+		AccountID: cf.F(cfAccount.ID),
+	})
+
+	if er != nil {
+		return fmt.Errorf("error deleting pages project: %w", er)
+	}
+
+	return nil
+}
+
+func updatePagesProject(ctx context.Context, projectName string) error {
+	project, err := cfClient.Pages.Projects.Get(ctx, projectName, pages.ProjectGetParams{
+		AccountID: cf.F(cfAccount.ID),
+	})
+	if err != nil {
+		return fmt.Errorf("could not get project: %w", err)
+	}
+
+	param := projectDeploymentNewParams{
+		AccountID: cfAccount.ID,
+		Branch:    "main",
+		Manifest:  "{}",
+		WorkerJS:  &multipart.FileHeader{Filename: "worker.js"},
+		jsPath:    workerPath,
+	}
+	data, ct, err := param.MarshalMultipart()
+	if err != nil {
+		return fmt.Errorf("error marshalling pages multipart data: %w", err)
+	}
+	r := bytes.NewBuffer(data)
+
+	_, er := cfClient.Pages.Projects.Deployments.New(
+		ctx,
+		project.Name,
+		pages.ProjectDeploymentNewParams{AccountID: cf.F(cfAccount.ID)},
+		option.WithRequestBody(ct, r),
+	)
+
+	if er != nil {
+		return fmt.Errorf("error updating pages project: %w", er)
+	}
+
+	return nil
+}
+
+func deployPagesProject(
 	ctx context.Context,
 	name string,
 	uid string,
@@ -240,7 +348,6 @@ func deployBPBPages(
 	proxy string,
 	fallback string,
 	sub string,
-	jsPath string,
 	kvNamespace *kv.Namespace,
 	customDomain string,
 ) (
@@ -253,7 +360,7 @@ func deployBPBPages(
 	for {
 		fmt.Printf("\n%s Creating Pages project...\n", title)
 
-		project, err = createPage(ctx, name, uid, pass, proxy, fallback, sub, kvNamespace)
+		project, err = createPagesProject(ctx, name, uid, pass, proxy, fallback, sub, kvNamespace)
 		if err != nil {
 			failMessage("Failed to create project.")
 			log.Printf("%v\n\n", err)
@@ -270,7 +377,7 @@ func deployBPBPages(
 	for {
 		fmt.Printf("\n%s Deploying Pages project...\n", title)
 
-		_, err = createPageDeployment(ctx, project, jsPath)
+		_, err = createPagesDeployment(ctx, project)
 		if err != nil {
 			failMessage("Failed to deploy project.")
 			log.Printf("%v\n\n", err)
@@ -286,7 +393,7 @@ func deployBPBPages(
 
 	if customDomain != "" {
 		for {
-			recordName, err := addPagesCustomDomain(ctx, name, customDomain)
+			recordName, err := addPagesProjectCustomDomain(ctx, name, customDomain)
 			if err != nil {
 				failMessage("Failed to add custom domain.")
 				log.Printf("%v\n\n", err)

@@ -8,24 +8,27 @@ import (
 	"time"
 )
 
-const version = "v2.0.0"
+const version = "v2.1.1"
+
+var (
+	srcPath    string
+	workerPath string
+	cachePath  string
+	isAndroid  = false
+	workerURL  = "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
+)
 
 func main() {
-	renderHeader()
+	initPaths()
 	setDNS()
-	isAndroid := checkAndroid()
+	checkAndroid()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		login(isAndroid)
-	}()
-
-	go func() {
-		defer wg.Done()
-		configureBPB(isAndroid)
+		runWizard()
 	}()
 
 	server := &http.Server{Addr: ":8976"}
