@@ -4,11 +4,12 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 )
 
-const version = "v2.1.1"
+const version = "v2.1.2"
 
 var (
 	srcPath    string
@@ -22,6 +23,9 @@ func main() {
 	initPaths()
 	setDNS()
 	checkAndroid()
+	if runtime.GOOS == "windows" {
+		enableVirtualTerminalProcessing()
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(1)
