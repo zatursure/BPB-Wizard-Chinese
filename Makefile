@@ -1,5 +1,6 @@
 VER ?= $(VERSION)
-LDFLAGS = -X "main.BuildTimestamp=$(shell date -u '+%Y-%m-%d %H:%M:%S')" \
+LDFLAGS = -w -s \
+		  -X "main.BuildTimestamp=$(shell date -u '+%Y-%m-%d %H:%M:%S')" \
           -X "main.VERSION=$(VER)" \
           -X "main.goVersion=$(shell go version | sed -r 's/go version go(.*)\ .*/\1/')"
 
@@ -21,9 +22,15 @@ build:
 		for goarch in $(GOARCH_LIST); do \
 			echo "Building for $$goos-$$goarch..."; \
 			outfile="bin/BPB-Wizard-$$goos-$$goarch$$ext"; \
-			GOOS=$$goos GOARCH=$$goarch $(GO) build -ldflags '$(LDFLAGS)' -o $$outfile || { echo "Not supported, Skipping $$goos-$$goarch"; continue; }; \
-			zipfile="dist/BPB-Wizard-$$goos-$$goarch.zip"; \
-			echo "Zipping $$outfile -> $$zipfile"; \
-			zip -j -q $$zipfile $$outfile; \
+			GOOS=$$goos GOARCH=$$goarch $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $$outfile || { echo "Not supported, Skipping $$goos-$$goarch"; continue; }; \
+			if [ "$$goos" = "windows" ] || [ "$$goos" = "darwin" ]; then \
+                zipfile="dist/BPB-Wizard-$$goos-$$goarch.zip"; \
+                echo "Zipping $$outfile -> $$zipfile"; \
+                zip -j -q $$zipfile $$outfile; \
+            else \
+                tarfile="dist/BPB-Wizard-$$goos-$$goarch.tar.gz"; \
+                echo "Zipping $$outfile -> $$tarfile"; \
+                tar -czf $$tarfile $$outfile; \
+            fi; \
 		done; \
 	done
