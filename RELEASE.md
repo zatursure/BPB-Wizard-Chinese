@@ -1,10 +1,12 @@
-# BPB Wizard new edition
-From now on you can modify an existing panel, wizard will list all workers and pages, you can choose one, update to the latest BPB Panel or just delete it.
+## ⚙️ Improvements
 
-## ⚙️ Bug fixes and Improvements
-- Added data entry validation for UUID, Trojan password and, Proxy IPs and Subscription URI path...
-- Panel modification is added.
-- Bug fixes
+- Revised build options to minimize binaries size.
+- Changed zip format for Linux binaries, Termux scripts are also changed:
 
-> [!TIP]
-> Pages deployments cannot be deleted if there is any assigned custom domain to the project. So, wizard removes asssigned custom domains first and then deletes panel.
+```bash title="ARM v8"
+curl -L -# -o BPB-Wizard.tar.gz https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm64.tar.gz && tar xzf BPB-Wizard.tar.gz && chmod +x ./BPB-Wizard-linux-arm64 && ./BPB-Wizard-linux-arm64
+```
+
+```bash title="ARM v7"
+curl -L -# -o BPB-Wizard.tar.gz https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm.tar.gz && tar xzf BPB-Wizard.tar.gz && chmod +x ./BPB-Wizard-linux-arm && ./BPB-Wizard-linux-arm
+```
