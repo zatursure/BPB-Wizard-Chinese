@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -23,9 +22,6 @@ func main() {
 	initPaths()
 	setDNS()
 	checkAndroid()
-	if runtime.GOOS == "windows" {
-		enableVirtualTerminalProcessing()
-	}
 
 	var wg sync.WaitGroup
 	wg.Add(1)

@@ -201,7 +201,7 @@ func promptUser(prompt string) string {
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Printf("\n%s Exiting...", title)
+		fmt.Printf("\n%s Exiting...\n", title)
 		if err == io.EOF {
 			os.Exit(0)
 		}

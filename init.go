@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"golang.org/x/sys/windows"
 )
 
 const (
@@ -88,20 +86,4 @@ func initPaths() {
 
 	workerPath = filepath.Join(srcPath, "worker.js")
 	cachePath = filepath.Join(srcPath, "tld.cache")
-}
-
-func enableVirtualTerminalProcessing() {
-	stdout := windows.Handle(os.Stdout.Fd())
-
-	var originalMode uint32
-	if err := windows.GetConsoleMode(stdout, &originalMode); err != nil {
-		log.Println("Error getting console mode:", err)
-		return
-	}
-
-	const ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
-	if err := windows.SetConsoleMode(stdout, originalMode|ENABLE_VIRTUAL_TERMINAL_PROCESSING); err != nil {
-		log.Println("Error setting console mode:", err)
-		return
-	}
 }
