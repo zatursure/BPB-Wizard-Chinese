@@ -30,7 +30,7 @@ build:
             else \
                 tarfile="dist/BPB-Wizard-$$goos-$$goarch.tar.gz"; \
                 echo "Zipping $$outfile -> $$tarfile"; \
-                tar -czf $$tarfile $$outfile; \
+                tar -C bin -czf $$tarfile $$(basename $$outfile); \
             fi; \
 		done; \
 	done
