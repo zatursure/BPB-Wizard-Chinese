@@ -96,7 +96,7 @@ func generateCodeChallenge(verifier string) string {
 
 func login() {
 	url := generateAuthURL()
-	fmt.Printf("\n%s Login %sCloudflare%s...\n", title, orange, reset)
+	fmt.Printf("\n%s Login %s...\n", title, fmtStr("Cloudflare", ORANGE, true))
 
 	if err := openURL(url); err != nil {
 		failMessage("Failed to login.")
