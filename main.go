@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const version = "v2.1.2"
+const VERSION = "v2.1.3"
 
 var (
 	srcPath    string

@@ -75,7 +75,7 @@ func renderHeader() {
 ■■■■■■■  ■■       ■■■■■■■  %s %s
 `,
 		fmtStr("Wizard", GREEN, true),
-		fmtStr(version, GREEN, false),
+		fmtStr(VERSION, GREEN, false),
 	)
 }
 
