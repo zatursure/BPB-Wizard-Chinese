@@ -10,18 +10,22 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 const (
-	red    = "\033[31m"
-	green  = "\033[32m"
-	reset  = "\033[0m"
-	orange = "\033[38;2;255;165;0m"
-	blue   = "\033[94m"
-	bold   = "\033[1m"
-	title  = bold + blue + "●" + reset
-	ask    = bold + "-" + reset
-	info   = bold + "+" + reset
+	RED    = "1"
+	GREEN  = "2"
+	ORANGE = "208"
+	BLUE   = "39"
+)
+
+var (
+	title   = fmtStr("●", BLUE, true)
+	ask     = fmtStr("-", "", true)
+	info    = fmtStr("+", "", true)
+	warning = fmtStr("Warning", RED, true)
 )
 
 func checkAndroid() {
@@ -68,12 +72,11 @@ func renderHeader() {
 ■■   ■■  ■■   ■■  ■■   ■■
 ■■■■■■■  ■■■■■■■  ■■■■■■■ 
 ■■   ■■  ■■       ■■   ■■
-■■■■■■■  ■■       ■■■■■■■  %sWizard%s %s%s
+■■■■■■■  ■■       ■■■■■■■  %s %s
 `,
-		bold+green,
-		reset+green,
-		version,
-		reset)
+		fmtStr("Wizard", GREEN, true),
+		fmtStr(VERSION, GREEN, false),
+	)
 }
 
 func initPaths() {
@@ -86,4 +89,14 @@ func initPaths() {
 
 	workerPath = filepath.Join(srcPath, "worker.js")
 	cachePath = filepath.Join(srcPath, "tld.cache")
+}
+
+func fmtStr(str string, color string, isBold bool) string {
+	style := lipgloss.NewStyle().Bold(isBold)
+
+	if color != "" {
+		style = style.Foreground(lipgloss.Color(color))
+	}
+
+	return style.Render(str)
 }

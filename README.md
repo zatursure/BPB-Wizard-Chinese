@@ -7,7 +7,7 @@ This project aims to facilitate the deployment and management process of [BPB Pa
 </p>
 <br>
 
-## 💡 Usage
+## 💡 How to use
 
 ### 1. Cloudflare account
 
@@ -18,20 +18,16 @@ To use this method, all you need is a Cloudflare account. You can [sign up here]
 > [!WARNING]
 > If you're connected to a VPN, disconnect it.
 
-#### Windows - Linux - macOS
+#### Windows - macOS
 
 Based on your operating system, [download the ZIP file](https://github.com/bia-pain-bache/BPB-Wizard/releases/latest), unzip it, and run the program.
 
-#### Android (Termux)
+#### Android (Termux) - Linux
 
-Android users who have Termux installed on their phone can install the BPB Panel by just copying this code into Termux:
+Android users who have Termux installed on their device and Linux users can use this bash:
 
-```bash title="ARM v8"
-curl -L -# -o BPB-Wizard.tar.gz https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm64.tar.gz && tar xzf BPB-Wizard.tar.gz && chmod +x ./BPB-Wizard-linux-arm64 && ./BPB-Wizard-linux-arm64
-```
-
-```bash title="ARM v7"
-curl -L -# -o BPB-Wizard.tar.gz https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/BPB-Wizard-linux-arm.tar.gz && tar xzf BPB-Wizard.tar.gz && chmod +x ./BPB-Wizard-linux-arm && ./BPB-Wizard-linux-arm
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/bia-pain-bache/BPB-Wizard/main/install.sh)
 ```
 
 > [!IMPORTANT]  

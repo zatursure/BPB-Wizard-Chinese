@@ -21,16 +21,18 @@ build:
 		fi; \
 		for goarch in $(GOARCH_LIST); do \
 			echo "Building for $$goos-$$goarch..."; \
-			outfile="bin/BPB-Wizard-$$goos-$$goarch$$ext"; \
-			GOOS=$$goos GOARCH=$$goarch $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $$outfile || { echo "Not supported, Skipping $$goos-$$goarch"; continue; }; \
+			outdir="bin/BPB-Wizard-$$goos-$$goarch"; \
+			outfile="BPB-Wizard-$$goos-$$goarch$$ext"; \
+			GOOS=$$goos GOARCH=$$goarch $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $$outdir/$$outfile || { echo "Not supported, Skipping $$goos-$$goarch"; continue; }; \
+			cp LICENSE $$outdir/; \
 			if [ "$$goos" = "windows" ] || [ "$$goos" = "darwin" ]; then \
                 zipfile="dist/BPB-Wizard-$$goos-$$goarch.zip"; \
                 echo "Zipping $$outfile -> $$zipfile"; \
-                zip -j -q $$zipfile $$outfile; \
+                zip -j -q $$zipfile $$outdir/*; \
             else \
                 tarfile="dist/BPB-Wizard-$$goos-$$goarch.tar.gz"; \
                 echo "Zipping $$outfile -> $$tarfile"; \
-                tar -C bin -czf $$tarfile $$(basename $$outfile); \
+                tar -czf $$tarfile -C $$outdir/ .; \
             fi; \
 		done; \
 	done

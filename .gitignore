@@ -16,3 +16,4 @@
 !assets
 !assets/**
 !init.go
+!install.sh

@@ -77,7 +77,7 @@ func downloadFile(url, dest string) error {
 }
 
 func downloadWorker() error {
-	fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
+	fmt.Printf("\n%s Downloading %s...\n", title, fmtStr("worker.js", GREEN, true))
 
 	for {
 		if _, err := os.Stat(workerPath); err != nil {
@@ -127,14 +127,14 @@ func generateRandomSubDomain(subDomainLength int) string {
 
 func isValidSubDomain(subDomain string) error {
 	if strings.Contains(subDomain, "bpb") {
-		message := fmt.Sprintf("Name cannot contain %sbpb%s. Please try again.\n", red, reset)
+		message := fmt.Sprintf("Name cannot contain %s. Please try again.\n", fmtStr("bpb", RED, true))
 		return fmt.Errorf("%s", message)
 	}
 
 	subdomainRegex := regexp.MustCompile(`^(?i)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 	isValid := subdomainRegex.MatchString(subDomain)
 	if !isValid {
-		message := fmt.Sprintf("Subdomain cannot start with %s-%s and should only contain %sA-Z%s and %s0-9%s. Please try again.\n", red, reset, green, reset, green, reset)
+		message := fmt.Sprintf("Subdomain cannot start with %s and should only contain %s and %s. Please try again.\n", fmtStr("-", RED, true), fmtStr("A-Z", GREEN, true), fmtStr("0-9", GREEN, true))
 		return fmt.Errorf("%s", message)
 	}
 	return nil
@@ -212,12 +212,12 @@ func promptUser(prompt string) string {
 }
 
 func failMessage(message string) {
-	errMark := bold + red + "✗" + reset
+	errMark := fmtStr("✗", RED, true)
 	fmt.Printf("%s %s\n", errMark, message)
 }
 
 func successMessage(message string) {
-	succMark := bold + green + "✓" + reset
+	succMark := fmtStr("✓", GREEN, true)
 	fmt.Printf("%s %s\n", succMark, message)
 }
 
@@ -300,7 +300,7 @@ func checkBPBPanel(url string) error {
 		message := fmt.Sprintf("BPB panel is ready -> %s", url)
 		successMessage(message)
 		fmt.Print("\n")
-		prompt := fmt.Sprintf("Would you like to open %sBPB panel%s in browser? (y/n): ", blue, reset)
+		prompt := fmt.Sprintf("Would you like to open %s in browser? (y/n): ", fmtStr("BPB panel", BLUE, true))
 
 		if response := promptUser(prompt); strings.ToLower(response) == "n" {
 			return nil
@@ -318,12 +318,12 @@ func checkBPBPanel(url string) error {
 
 func runWizard() {
 	renderHeader()
-	fmt.Printf("\n%s Welcome to %sBPB Wizard%s!\n", title, green, reset)
-	fmt.Printf("%s This wizard will help you to deploy or modify %sBPB Panel%s on Cloudflare.\n", info, blue, reset)
-	fmt.Printf("%s Please make sure you have a verified %sCloudflare%s account.\n\n", info, orange, reset)
+	fmt.Printf("\n%s Welcome to %s!\n", title, fmtStr("BPB Wizard", GREEN, true))
+	fmt.Printf("%s This wizard will help you to deploy or modify %s on Cloudflare.\n", info, fmtStr("BPB Panel", BLUE, true))
+	fmt.Printf("%s Please make sure you have a verified %s account.\n\n", info, fmtStr("Cloudflare", ORANGE, true))
 
 	for {
-		message := fmt.Sprintf("Please enter 1 to %screate%s a new panel or 2 to %smodify%s an existing panel: ", green, reset, red, reset)
+		message := fmt.Sprintf("Please enter 1 to %s a new panel or 2 to %s an existing panel: ", fmtStr("CREATE", GREEN, true), fmtStr("MODIFY", RED, true))
 		response := promptUser(message)
 		switch response {
 		case "1":
@@ -359,8 +359,8 @@ func createPanel() {
 	}
 
 	fmt.Printf("\n%s Get settings...\n", title)
-	fmt.Printf("\n%s You can use %sWorkers%s or %sPages%s to deploy.\n", info, green, reset, green, reset)
-	fmt.Printf("%s %sWarning%s: If you choose %sPages%s, sometimes it takes up to 5 minutes until you can access panel, so please keep calm!\n", info, red, reset, green, reset)
+	fmt.Printf("\n%s You can use %s or %s to deploy.\n", info, fmtStr("Workers", ORANGE, true), fmtStr("Pages", ORANGE, true))
+	fmt.Printf("%s %s: If you choose %s, sometimes it takes up to 5 minutes until you can access panel, so please keep calm!\n", info, warning, fmtStr("Pages", ORANGE, true))
 	var deployType DeployType
 
 	for {
@@ -381,7 +381,7 @@ func createPanel() {
 	var projectName string
 	for {
 		projectName = generateRandomSubDomain(32)
-		fmt.Printf("\n%s The random generated name (%sSubdomain%s) is: %s%s%s\n", info, green, reset, orange, projectName, reset)
+		fmt.Printf("\n%s The random generated name (%s) is: %s\n", info, fmtStr("Subdomain", GREEN, true), fmtStr(projectName, ORANGE, true))
 		if response := promptUser("Please enter a custom name or press ENTER to use generated one: "); response != "" {
 			if err := isValidSubDomain(response); err != nil {
 				failMessage(err.Error())
@@ -401,7 +401,7 @@ func createPanel() {
 		}
 
 		if !isAvailable {
-			prompt := fmt.Sprintf("This already exists! This will %sRESET%s all panel settings, would you like to override it? (y/n): ", red, reset)
+			prompt := fmt.Sprintf("This already exists! This will %s all panel settings, would you like to override it? (y/n): ", fmtStr("RESET", RED, true))
 			if response := promptUser(prompt); strings.ToLower(response) == "n" {
 				continue
 			}
@@ -412,7 +412,7 @@ func createPanel() {
 	}
 
 	uid := uuid.NewString()
-	fmt.Printf("\n%s The random generated %sUUID%s is: %s%s%s\n", info, green, reset, orange, uid, reset)
+	fmt.Printf("\n%s The random generated %s is: %s\n", info, fmtStr("UUID", GREEN, true), fmtStr(uid, ORANGE, true))
 	for {
 		if response := promptUser("Please enter a custom uid or press ENTER to use generated one: "); response != "" {
 			if _, err := uuid.Parse(response); err != nil {
@@ -427,7 +427,7 @@ func createPanel() {
 	}
 
 	trPass := generateTrPassword(12)
-	fmt.Printf("\n%s The random generated %sTrojan password%s is: %s%s%s\n", info, green, reset, orange, trPass, reset)
+	fmt.Printf("\n%s The random generated %s is: %s\n", info, fmtStr("Trojan password", GREEN, true), fmtStr(trPass, ORANGE, true))
 	for {
 		if response := promptUser("Please enter a custom Trojan password or press ENTER to use generated one: "); response != "" {
 			if !isValidTrPassword(response) {
@@ -442,7 +442,7 @@ func createPanel() {
 	}
 
 	proxyIP := "bpb.yousef.isegaro.com"
-	fmt.Printf("\n%s The default %sProxy IP%s is: %s%s%s\n", info, green, reset, orange, proxyIP, reset)
+	fmt.Printf("\n%s The default %s is: %s\n", info, fmtStr("Proxy IP", GREEN, true), fmtStr(proxyIP, ORANGE, true))
 	for {
 		if response := promptUser("Please enter custom Proxy IP/Domains or press ENTER to use default: "); response != "" {
 			areValid := true
@@ -467,13 +467,13 @@ func createPanel() {
 	}
 
 	fallback := "speed.cloudflare.com"
-	fmt.Printf("\n%s The default %sFallback domain%s is: %s%s%s\n", info, green, reset, orange, fallback, reset)
+	fmt.Printf("\n%s The default %s is: %s\n", info, fmtStr("Fallback domain", GREEN, true), fmtStr(fallback, ORANGE, true))
 	if response := promptUser("Please enter a custom Fallback domain or press ENTER to use default: "); response != "" {
 		fallback = response
 	}
 
 	subPath := generateSubURIPath(16)
-	fmt.Printf("\n%s The random generated %sSubscription path%s is: %s%s%s\n", info, green, reset, orange, subPath, reset)
+	fmt.Printf("\n%s The random generated %s is: %s\n", info, fmtStr("Subscription path", GREEN, true), fmtStr(subPath, ORANGE, true))
 	for {
 		if response := promptUser("Please enter a custom Subscription path or press ENTER to use generated one: "); response != "" {
 			if !isValidSubURIPath(response) {
@@ -488,7 +488,7 @@ func createPanel() {
 	}
 
 	var customDomain string
-	fmt.Printf("\n%s You can set %sCustom domain%s ONLY if you registered domain on this cloudflare account.\n", info, green, reset)
+	fmt.Printf("\n%s You can set %s ONLY if you registered domain on this cloudflare account.\n", info, fmtStr("Custom domain", GREEN, true))
 	if response := promptUser("Please enter a custom domain (if you have any) or press ENTER to ignore: "); response != "" {
 		customDomain = response
 	}
@@ -591,7 +591,7 @@ func modifyPanel() {
 		message = fmt.Sprintf("Found %d workers and pages projects:\n", len(panels))
 		successMessage(message)
 		for i, panel := range panels {
-			fmt.Printf(" %s%d.%s %s - %s%s%s\n", blue, i+1, reset, panel.Name, orange, panel.Type, reset)
+			fmt.Printf(" %s %s - %s\n", fmtStr(strconv.Itoa(i+1)+".", BLUE, true), panel.Name, fmtStr(panel.Type, ORANGE, true))
 		}
 
 		var index int
@@ -610,7 +610,7 @@ func modifyPanel() {
 		panelName := panels[index-1].Name
 		panelType := panels[index-1].Type
 
-		message = fmt.Sprintf("Please enter 1 to %supdate%s or 2 to %sdelete%s panel: ", green, reset, red, reset)
+		message = fmt.Sprintf("Please enter 1 to %s or 2 to %s panel: ", fmtStr("UPDATE", GREEN, true), fmtStr("DELETE", RED, true))
 		response := promptUser(message)
 		for {
 			switch response {

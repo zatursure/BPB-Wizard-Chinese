@@ -404,7 +404,7 @@ func deployPagesProject(
 			}
 
 			successMessage("Custom domain added to pages successfully!")
-			fmt.Printf("%s %sWarning%s: You should create a CNAME record with Name: %s%s%s and Target: %s%s.pages.dev%s, Otherwise your Custom Domain will not work.\n", info, red, reset, green, recordName, reset, green, name, reset)
+			fmt.Printf("%s %s: You should create a CNAME record with Name: %s and Target: %s, Otherwise your Custom Domain will not work.\n", info, warning, fmtStr(recordName, GREEN, true), fmtStr(name+".pages.dev", GREEN, true))
 			return "https://" + customDomain + "/panel", nil
 		}
 	}
