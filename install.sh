@@ -24,4 +24,4 @@ echo "Downloading ${ARCHIVE}..."
 curl -L -# -o "$ARCHIVE" "https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/${ARCHIVE}" && \
 tar xzf "$ARCHIVE" && \
 chmod +x "./${BINARY}" && \
-./"${BINARY}"
+exec ./"${BINARY}"
