@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
-
-const VERSION = "v2.1.3"
 
 var (
 	srcPath    string
@@ -16,13 +17,23 @@ var (
 	cachePath  string
 	isAndroid  = false
 	workerURL  = "https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js"
+	VERSION    = "dev"
 )
 
-func main() {
+func init() {
+	showVersion := flag.Bool("version", false, "Show version")
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(VERSION)
+		os.Exit(0)
+	}
+
 	initPaths()
 	setDNS()
 	checkAndroid()
+}
 
+func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 

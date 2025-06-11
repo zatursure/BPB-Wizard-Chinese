@@ -1,8 +1,5 @@
 name: Build and Release
 
-env:
-  VERSION: 2.1.3
-
 permissions:
   contents: write
 
@@ -12,6 +9,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64, arm, 386]
+        exclude:
+          - goos: darwin
+            goarch: arm
+          - goos: darwin
+            goarch: 386
+      fail-fast: false
 
     steps:
       - name: Check out code
@@ -23,8 +31,12 @@ jobs:
         with:
           go-version: ^1.24
 
+      - name: Read version
+        id: version
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_ENV
+
       - name: Build and zip
-        run: make build VERSION=$VERSION
+        run: make build VERSION=$VERSION GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }}
 
       - name: Read release note
         id: read_release
@@ -41,8 +53,8 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/*
-          tag: v${{ env.VERSION }}
-          release_name: Release v${{ env.VERSION }}
+          tag: ${{ env.VERSION }}
+          release_name: Release ${{ env.VERSION }}
           overwrite: true
           file_glob: true
           prerelease: true
