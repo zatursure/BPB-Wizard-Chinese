@@ -285,7 +285,7 @@ func listWorkers(ctx context.Context) ([]string, error) {
 }
 
 func deleteWorker(ctx context.Context, name string) error {
-	err := cfClient.Workers.Scripts.Delete(ctx, name, workers.ScriptDeleteParams{
+	_, err := cfClient.Workers.Scripts.Delete(ctx, name, workers.ScriptDeleteParams{
 		AccountID: cf.F(cfAccount.ID),
 		Force:     cf.F(true),
 	})
