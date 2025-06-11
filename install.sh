@@ -15,7 +15,7 @@ case "$ARCH" in
     *)             echo "Unsupported architecture: $ARCH" && exit 1 ;;
 esac
 
-BINARY="BPB-Wizard-linux-${ARCH}"
+BINARY="BPB-Wizard"
 ARCHIVE="${BINARY}.tar.gz"
 LATEST_VERSION=$(curl -fsSL https://raw.githubusercontent.com/bia-pain-bache/BPB-Wizard/main/VERSION)
 
