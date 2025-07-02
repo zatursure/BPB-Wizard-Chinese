@@ -57,5 +57,6 @@ jobs:
           release_name: Release ${{ env.VERSION }}
           overwrite: true
           file_glob: true
-          prerelease: true
+          prerelease: false
+          make_latest: true
           body: ${{ steps.read_release.outputs.RELEASE_BODY }}
