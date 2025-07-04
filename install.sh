@@ -2,7 +2,7 @@
 
 OS=$(uname -s)
 if [ "$OS" != "Linux" ]; then
-    echo "This script only supports Linux/Android platforms."
+    echo "本脚本仅支持 Linux/Android 平台。"
     exit 1
 fi
 
@@ -12,30 +12,30 @@ case "$ARCH" in
     armv7*|armv8*) ARCH="arm" ;;
     x86_64)        ARCH="amd64" ;;
     i386|i686)     ARCH="386" ;;
-    *)             echo "Unsupported architecture: $ARCH" && exit 1 ;;
+    *)             echo "不支持的架构: $ARCH" && exit 1 ;;
 esac
 
 BINARY="BPB-Wizard"
 ARCHIVE="${BINARY}-${OS}-${ARCH}.tar.gz"
-LATEST_VERSION=$(curl -fsSL https://raw.githubusercontent.com/bia-pain-bache/BPB-Wizard/main/VERSION)
+LATEST_VERSION=$(curl -fsSL https://raw.githubusercontent.com/zatursure/BPB-Wizard-Chinese/main/VERSION)
 
 if [ -x "./${BINARY}" ]; then
     INSTALLED_VERSION=$("./${BINARY}" --version)
-    echo "Installed version: $INSTALLED_VERSION"
-    echo "Latest version: ${LATEST_VERSION}"
+    echo "已安装版本: $INSTALLED_VERSION"
+    echo "最新版本: ${LATEST_VERSION}"
 
     if [ "${INSTALLED_VERSION}" = "${LATEST_VERSION}" ]; then
-        echo "Wizard is up to date. Running..."
+        echo "向导已是最新版本，正在运行..."
         exec ./"${BINARY}"
     else
-        echo "Updating to version ${LATEST_VERSION}..."
+        echo "正在更新到版本 ${LATEST_VERSION}..."
     fi
 else
-    echo "Wizard not found on device. Installing version ${LATEST_VERSION}..."
+    echo "未检测到向导，正在安装版本 ${LATEST_VERSION}..."
 fi
 
-echo "Downloading ${ARCHIVE}..."
-curl -L -# -o "${ARCHIVE}" "https://github.com/bia-pain-bache/BPB-Wizard/releases/latest/download/${ARCHIVE}" && \
+echo "正在下载 ${ARCHIVE}..."
+curl -L -# -o "${ARCHIVE}" "https://github.com/zatursure/BPB-Wizard-Chinese/releases/latest/download/${ARCHIVE}" && \
 tar xzf "${ARCHIVE}" && \
 chmod +x "./${BINARY}" && \
 exec ./"${BINARY}"

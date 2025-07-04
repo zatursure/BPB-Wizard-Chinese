@@ -47,7 +47,7 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			failMessage("Error serving localhost.")
+			failMessage("本地服务器启动出错。")
 			log.Fatalln(err)
 		}
 	}()
@@ -57,6 +57,6 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		log.Printf("服务器被强制关闭: %v", err)
 	}
 }

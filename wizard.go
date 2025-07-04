@@ -318,12 +318,12 @@ func checkBPBPanel(url string) error {
 
 func runWizard() {
 	renderHeader()
-	fmt.Printf("\n%s Welcome to %s!\n", title, fmtStr("BPB Wizard", GREEN, true))
-	fmt.Printf("%s This wizard will help you to deploy or modify %s on Cloudflare.\n", info, fmtStr("BPB Panel", BLUE, true))
-	fmt.Printf("%s Please make sure you have a verified %s account.\n\n", info, fmtStr("Cloudflare", ORANGE, true))
+	fmt.Printf("\n%s 欢迎使用 %s！\n", title, fmtStr("BPB 向导", GREEN, true))
+	fmt.Printf("%s 本向导将帮助你在 Cloudflare 上部署或修改 %s。\n", info, fmtStr("BPB 面板", BLUE, true))
+	fmt.Printf("%s 请确保你拥有已验证的 %s 账号。\n\n", info, fmtStr("Cloudflare", ORANGE, true))
 
 	for {
-		message := fmt.Sprintf("Please enter 1 to %s a new panel or 2 to %s an existing panel: ", fmtStr("CREATE", GREEN, true), fmtStr("MODIFY", RED, true))
+		message := fmt.Sprintf("请输入 1 以%s新面板，或 2 以%s已有面板: ", fmtStr("创建", GREEN, true), fmtStr("修改", RED, true))
 		response := promptUser(message)
 		switch response {
 		case "1":
@@ -331,13 +331,13 @@ func runWizard() {
 		case "2":
 			modifyPanel()
 		default:
-			failMessage("Wrong selection, Please choose 1 or 2 only!\n")
+			failMessage("选择错误，请只输入 1 或 2！\n")
 			continue
 		}
 
-		res := promptUser("Would you like to run the wizard again? (y/n): ")
+		res := promptUser("是否再次运行向导？(y/n): ")
 		if strings.ToLower(res) == "n" {
-			fmt.Printf("\n%s Exiting...\n", title)
+			fmt.Printf("\n%s 退出...\n", title)
 			return
 		}
 	}
@@ -353,25 +353,25 @@ func createPanel() {
 
 		cfAccount, err = getAccount(ctx)
 		if err != nil {
-			failMessage("Failed to get Cloudflare account.")
+			failMessage("获取 Cloudflare 账号失败。")
 			log.Fatalln(err)
 		}
 	}
 
-	fmt.Printf("\n%s Get settings...\n", title)
-	fmt.Printf("\n%s You can use %s or %s to deploy.\n", info, fmtStr("Workers", ORANGE, true), fmtStr("Pages", ORANGE, true))
-	fmt.Printf("%s %s: If you choose %s, sometimes it takes up to 5 minutes until you can access panel, so please keep calm!\n", info, warning, fmtStr("Pages", ORANGE, true))
+	fmt.Printf("\n%s 获取设置...\n", title)
+	fmt.Printf("\n%s 你可以选择使用 %s 或 %s 进行部署。\n", info, fmtStr("Workers", ORANGE, true), fmtStr("Pages", ORANGE, true))
+	fmt.Printf("%s %s: 如果选择 %s，访问面板可能需要最多 5 分钟，请耐心等待！\n", info, warning, fmtStr("Pages", ORANGE, true))
 	var deployType DeployType
 
 	for {
-		response := promptUser("Please enter 1 for Workers or 2 for Pages deployment: ")
+		response := promptUser("请输入 1 选择 Workers 或 2 选择 Pages 部署: ")
 		switch response {
 		case "1":
 			deployType = DTWorker
 		case "2":
 			deployType = DTPage
 		default:
-			failMessage("Wrong selection, Please choose 1 or 2 only!")
+			failMessage("选择错误，请只输入 1 或 2！")
 			continue
 		}
 
@@ -381,8 +381,8 @@ func createPanel() {
 	var projectName string
 	for {
 		projectName = generateRandomSubDomain(32)
-		fmt.Printf("\n%s The random generated name (%s) is: %s\n", info, fmtStr("Subdomain", GREEN, true), fmtStr(projectName, ORANGE, true))
-		if response := promptUser("Please enter a custom name or press ENTER to use generated one: "); response != "" {
+		fmt.Printf("\n%s 随机生成的名称（%s）为: %s\n", info, fmtStr("子域名", GREEN, true), fmtStr(projectName, ORANGE, true))
+		if response := promptUser("请输入自定义名称或直接回车使用生成的名称: "); response != "" {
 			if err := isValidSubDomain(response); err != nil {
 				failMessage(err.Error())
 				continue
@@ -392,7 +392,7 @@ func createPanel() {
 		}
 
 		var isAvailable bool
-		fmt.Printf("\n%s Checking domain availablity...\n", title)
+		fmt.Printf("\n%s 检查域名可用性...\n", title)
 
 		if deployType == DTWorker {
 			isAvailable = isWorkerAvailable(ctx, projectName)
@@ -401,22 +401,22 @@ func createPanel() {
 		}
 
 		if !isAvailable {
-			prompt := fmt.Sprintf("This already exists! This will %s all panel settings, would you like to override it? (y/n): ", fmtStr("RESET", RED, true))
+			prompt := fmt.Sprintf("该名称已存在！这将%s所有面板设置，是否覆盖？(y/n): ", fmtStr("重置", RED, true))
 			if response := promptUser(prompt); strings.ToLower(response) == "n" {
 				continue
 			}
 		}
 
-		successMessage("Available!")
+		successMessage("可用！")
 		break
 	}
 
 	uid := uuid.NewString()
-	fmt.Printf("\n%s The random generated %s is: %s\n", info, fmtStr("UUID", GREEN, true), fmtStr(uid, ORANGE, true))
+	fmt.Printf("\n%s 随机生成的 %s 为: %s\n", info, fmtStr("UUID", GREEN, true), fmtStr(uid, ORANGE, true))
 	for {
-		if response := promptUser("Please enter a custom uid or press ENTER to use generated one: "); response != "" {
+		if response := promptUser("请输入自定义 uid 或直接回车使用生成的 uid: "); response != "" {
 			if _, err := uuid.Parse(response); err != nil {
-				failMessage("UUID is not standard, please try again.\n")
+				failMessage("UUID 非标准格式，请重试。\n")
 				continue
 			}
 
@@ -427,11 +427,11 @@ func createPanel() {
 	}
 
 	trPass := generateTrPassword(12)
-	fmt.Printf("\n%s The random generated %s is: %s\n", info, fmtStr("Trojan password", GREEN, true), fmtStr(trPass, ORANGE, true))
+	fmt.Printf("\n%s 随机生成的 %s 为: %s\n", info, fmtStr("Trojan 密码", GREEN, true), fmtStr(trPass, ORANGE, true))
 	for {
-		if response := promptUser("Please enter a custom Trojan password or press ENTER to use generated one: "); response != "" {
+		if response := promptUser("请输入自定义 Trojan 密码或直接回车使用生成的密码: "); response != "" {
 			if !isValidTrPassword(response) {
-				failMessage("Trojan password cannot contain none standard character! Please try again.\n")
+				failMessage("Trojan 密码不能包含非标准字符！请重试。\n")
 				continue
 			}
 
@@ -442,16 +442,16 @@ func createPanel() {
 	}
 
 	proxyIP := "bpb.yousef.isegaro.com"
-	fmt.Printf("\n%s The default %s is: %s\n", info, fmtStr("Proxy IP", GREEN, true), fmtStr(proxyIP, ORANGE, true))
+	fmt.Printf("\n%s 默认 %s 为: %s\n", info, fmtStr("代理 IP", GREEN, true), fmtStr(proxyIP, ORANGE, true))
 	for {
-		if response := promptUser("Please enter custom Proxy IP/Domains or press ENTER to use default: "); response != "" {
+		if response := promptUser("请输入自定义代理 IP/域名，或直接回车使用默认值: "); response != "" {
 			areValid := true
 			values := strings.SplitSeq(response, ",")
 			for v := range values {
 				trimmedValue := strings.TrimSpace(v)
 				if !isValidIpDomain(trimmedValue) && !isValidHost(trimmedValue) {
 					areValid = false
-					message := fmt.Sprintf("%s is not a valid IP or Domain. Please try again.", trimmedValue)
+					message := fmt.Sprintf("%s 不是有效的 IP 或域名，请重试。", trimmedValue)
 					failMessage(message)
 				}
 			}
@@ -467,17 +467,17 @@ func createPanel() {
 	}
 
 	fallback := "speed.cloudflare.com"
-	fmt.Printf("\n%s The default %s is: %s\n", info, fmtStr("Fallback domain", GREEN, true), fmtStr(fallback, ORANGE, true))
-	if response := promptUser("Please enter a custom Fallback domain or press ENTER to use default: "); response != "" {
+	fmt.Printf("\n%s 默认 %s 为: %s\n", info, fmtStr("回落域名", GREEN, true), fmtStr(fallback, ORANGE, true))
+	if response := promptUser("请输入自定义回落域名或直接回车使用默认值: "); response != "" {
 		fallback = response
 	}
 
 	subPath := generateSubURIPath(16)
-	fmt.Printf("\n%s The random generated %s is: %s\n", info, fmtStr("Subscription path", GREEN, true), fmtStr(subPath, ORANGE, true))
+	fmt.Printf("\n%s 随机生成的 %s 为: %s\n", info, fmtStr("订阅路径", GREEN, true), fmtStr(subPath, ORANGE, true))
 	for {
-		if response := promptUser("Please enter a custom Subscription path or press ENTER to use generated one: "); response != "" {
+		if response := promptUser("请输入自定义订阅路径或直接回车使用生成的路径: "); response != "" {
 			if !isValidSubURIPath(response) {
-				failMessage("URI cannot contain none standard character! Please try again.\n")
+				failMessage("URI 不能包含非标准字符！请重试。\n")
 				continue
 			}
 
@@ -488,12 +488,12 @@ func createPanel() {
 	}
 
 	var customDomain string
-	fmt.Printf("\n%s You can set %s ONLY if you registered domain on this cloudflare account.\n", info, fmtStr("Custom domain", GREEN, true))
-	if response := promptUser("Please enter a custom domain (if you have any) or press ENTER to ignore: "); response != "" {
+	fmt.Printf("\n%s 仅当你在本 Cloudflare 账号下注册了域名时，才可设置 %s。\n", info, fmtStr("自定义域名", GREEN, true))
+	if response := promptUser("请输入自定义域名（如有）或直接回车跳过: "); response != "" {
 		customDomain = response
 	}
 
-	fmt.Printf("\n%s Creating KV namespace...\n", title)
+	fmt.Printf("\n%s 创建 KV 命名空间...\n", title)
 	var kvNamespace *kv.Namespace
 
 	for {
@@ -501,21 +501,21 @@ func createPanel() {
 		kvName := fmt.Sprintf("panel-kv-%s", now)
 		kvNamespace, err = createKVNamespace(ctx, kvName)
 		if err != nil {
-			failMessage("Failed to create KV.")
+			failMessage("创建 KV 失败。")
 			log.Printf("%v\n\n", err)
-			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
+			if response := promptUser("是否重试？(y/n): "); strings.ToLower(response) == "n" {
 				return
 			}
 			continue
 		}
 
-		successMessage("KV created successfully!")
+		successMessage("KV 创建成功！")
 		break
 	}
 
 	var panel string
 	if err := downloadWorker(); err != nil {
-		failMessage("Failed to download worker.js")
+		failMessage("下载 worker.js 失败")
 		log.Fatalln(err)
 	}
 
@@ -527,12 +527,12 @@ func createPanel() {
 	}
 
 	if err != nil {
-		failMessage("Failed to get panel URL.")
+		failMessage("获取面板 URL 失败。")
 		log.Fatalln(err)
 	}
 
 	if err := checkBPBPanel(panel); err != nil {
-		failMessage("Failed to checkout BPB panel.")
+		failMessage("检测 BPB 面板失败。")
 		log.Fatalln(err)
 	}
 }
@@ -547,7 +547,7 @@ func modifyPanel() {
 
 		cfAccount, err = getAccount(ctx)
 		if err != nil {
-			failMessage("Failed to get Cloudflare account.")
+			failMessage("获取 Cloudflare 账号失败。")
 			log.Fatalln(err)
 		}
 	}
@@ -556,10 +556,10 @@ func modifyPanel() {
 		var panels []Panel
 		var message string
 
-		fmt.Printf("\n%s Getting panels list...\n", title)
+		fmt.Printf("\n%s 获取面板列表...\n", title)
 		workersList, err := listWorkers(ctx)
 		if err != nil {
-			failMessage("Failed to get workers list.")
+			failMessage("获取 workers 列表失败。")
 			log.Println(err)
 		} else {
 			for _, worker := range workersList {
@@ -572,7 +572,7 @@ func modifyPanel() {
 
 		pagesList, err := listPages(ctx)
 		if err != nil {
-			failMessage("Failed to get pages list.")
+			failMessage("获取 pages 列表失败。")
 			log.Println(err)
 		} else {
 			for _, pages := range pagesList {
@@ -584,11 +584,11 @@ func modifyPanel() {
 		}
 
 		if len(panels) == 0 {
-			failMessage("No Workers or Pages found, Exiting...")
+			failMessage("未找到 Workers 或 Pages，正在退出...")
 			return
 		}
 
-		message = fmt.Sprintf("Found %d workers and pages projects:\n", len(panels))
+		message = fmt.Sprintf("共找到 %d 个 workers 和 pages 项目:\n", len(panels))
 		successMessage(message)
 		for i, panel := range panels {
 			fmt.Printf(" %s %s - %s\n", fmtStr(strconv.Itoa(i+1)+".", BLUE, true), panel.Name, fmtStr(panel.Type, ORANGE, true))
@@ -597,10 +597,10 @@ func modifyPanel() {
 		var index int
 		for {
 			fmt.Println("")
-			response := promptUser("Please select the number you want to modify: ")
+			response := promptUser("请选择你要修改的编号: ")
 			index, err = strconv.Atoi(response)
 			if err != nil || index < 1 || index > len(panels) {
-				failMessage("Invalid selection, please try again.")
+				failMessage("选择无效，请重试。")
 				continue
 			}
 
@@ -610,62 +610,62 @@ func modifyPanel() {
 		panelName := panels[index-1].Name
 		panelType := panels[index-1].Type
 
-		message = fmt.Sprintf("Please enter 1 to %s or 2 to %s panel: ", fmtStr("UPDATE", GREEN, true), fmtStr("DELETE", RED, true))
+		message = fmt.Sprintf("请输入 1 以%s面板，或 2 以%s面板: ", fmtStr("更新", GREEN, true), fmtStr("删除", RED, true))
 		response := promptUser(message)
 		for {
 			switch response {
 			case "1":
 
 				if err := downloadWorker(); err != nil {
-					failMessage("Failed to download worker.js")
+					failMessage("下载 worker.js 失败")
 					log.Fatalln(err)
 				}
 
 				if panelType == "workers" {
 					if err := updateWorker(ctx, panelName); err != nil {
-						failMessage("Failed to update panel.")
+						failMessage("更新面板失败。")
 						log.Fatalln(err)
 					}
 
-					successMessage("Panel updated successfully!\n")
+					successMessage("面板更新成功！\n")
 					break
 				}
 
 				if err := updatePagesProject(ctx, panelName); err != nil {
-					failMessage("Failed to update panel.")
+					failMessage("更新面板失败。")
 					log.Fatalln(err)
 				}
 
-				successMessage("Panel updated successfully!\n")
+				successMessage("面板更新成功！\n")
 
 			case "2":
 
 				if panelType == "workers" {
 					if err := deleteWorker(ctx, panelName); err != nil {
-						failMessage("Failed to delete panel.")
+						failMessage("删除面板失败。")
 						log.Fatalln(err)
 					}
 
-					successMessage("Panel deleted successfully!\n")
+					successMessage("面板删除成功！\n")
 					break
 				}
 
 				if err := deletePagesProject(ctx, panelName); err != nil {
-					failMessage("Failed to delete panel.")
+					failMessage("删除面板失败。")
 					log.Fatalln(err)
 				}
 
-				successMessage("Panel deleted successfully!\n")
+				successMessage("面板删除成功！\n")
 
 			default:
-				failMessage("Wrong selection, Please choose 1 or 2 only!")
+				failMessage("选择错误，请只输入 1 或 2！")
 				continue
 			}
 
 			break
 		}
 
-		if response := promptUser("Would you like to modify another panel? (y/n): "); strings.ToLower(response) == "n" {
+		if response := promptUser("是否继续修改其他面板？(y/n): "); strings.ToLower(response) == "n" {
 			break
 		}
 	}

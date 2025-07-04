@@ -358,36 +358,36 @@ func deployPagesProject(
 	var err error
 
 	for {
-		fmt.Printf("\n%s Creating Pages project...\n", title)
+		fmt.Printf("\n%s 正在创建 Pages 项目...\n", title)
 
 		project, err = createPagesProject(ctx, name, uid, pass, proxy, fallback, sub, kvNamespace)
 		if err != nil {
-			failMessage("Failed to create project.")
+			failMessage("创建项目失败。")
 			log.Printf("%v\n\n", err)
-			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
+			if response := promptUser("是否重试？(y/n): "); strings.ToLower(response) == "n" {
 				return "", nil
 			}
 			continue
 		}
 
-		successMessage("Page created successfully!")
+		successMessage("Page 创建成功！")
 		break
 	}
 
 	for {
-		fmt.Printf("\n%s Deploying Pages project...\n", title)
+		fmt.Printf("\n%s 正在部署 Pages 项目...\n", title)
 
 		_, err = createPagesDeployment(ctx, project)
 		if err != nil {
-			failMessage("Failed to deploy project.")
+			failMessage("部署项目失败。")
 			log.Printf("%v\n\n", err)
-			if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
+			if response := promptUser("是否重试？(y/n): "); strings.ToLower(response) == "n" {
 				return "", nil
 			}
 			continue
 		}
 
-		successMessage("Page deployed successfully!")
+		successMessage("Page 部署成功！")
 		break
 	}
 
@@ -395,20 +395,20 @@ func deployPagesProject(
 		for {
 			recordName, err := addPagesProjectCustomDomain(ctx, name, customDomain)
 			if err != nil {
-				failMessage("Failed to add custom domain.")
+				failMessage("添加自定义域名失败。")
 				log.Printf("%v\n\n", err)
-				if response := promptUser("Would you like to try again? (y/n): "); strings.ToLower(response) == "n" {
+				if response := promptUser("是否重试？(y/n): "); strings.ToLower(response) == "n" {
 					return "", nil
 				}
 				continue
 			}
 
-			successMessage("Custom domain added to pages successfully!")
-			fmt.Printf("%s %s: You should create a CNAME record with Name: %s and Target: %s, Otherwise your Custom Domain will not work.\n", info, warning, fmtStr(recordName, GREEN, true), fmtStr(name+".pages.dev", GREEN, true))
+			successMessage("自定义域名添加成功！")
+			fmt.Printf("%s %s: 你需要为 Name: %s 和 Target: %s 创建 CNAME 记录，否则自定义域名将无法生效。\n", info, warning, fmtStr(recordName, GREEN, true), fmtStr(name+".pages.dev", GREEN, true))
 			return "https://" + customDomain + "/panel", nil
 		}
 	}
 
-	successMessage("It takes up to 5 minutes to access panel, please wait...")
+	successMessage("访问面板大约需要 5 分钟，请耐心等待...")
 	return "https://" + project.Subdomain + "/panel", nil
 }

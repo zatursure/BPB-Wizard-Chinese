@@ -1,49 +1,44 @@
-<h1 align="center">💦 BPB Wizard</h1>
+<h1 align="center">💦 BPB 向导</h1>
 
-This project aims to facilitate the deployment and management process of [BPB Panel](https://github.com/bia-pain-bache/BPB-Worker-Panel) and prevent user mistakes during deployments. It supports both Workers and Pages methods and is highly recommended to use.
+本项目旨在简化 [BPB 面板](https://github.com/zatursure/BPB-Worker-Panel-Chinese) 的部署与管理流程，防止用户在部署过程中出现错误。支持 Workers 和 Pages 两种方式，强烈推荐使用。
 
-<p align="center">
-  <img src="assets/wizard.jpg">
-</p>
-<br>
+## 💡 使用方法
 
-## 💡 How to use
+### 1. Cloudflare 账号
 
-### 1. Cloudflare account
+你只需要一个 Cloudflare 账号即可使用本工具。[点击这里注册](https://dash.cloudflare.com/sign-up/)，注册后请记得查收邮件并完成账号验证。
 
-To use this method, all you need is a Cloudflare account. You can [sign up here](https://dash.cloudflare.com/sign-up/), and don’t forget to check your email afterward to verify your account.
-
-### 2. Install or modify BPB Panel
+### 2. 安装或修改 BPB 面板
 
 > [!WARNING]
-> If you're connected to a VPN, disconnect it.
+> 如果你已连接 VPN，请先断开。
 
 #### Windows - macOS
 
-Based on your operating system, [download the ZIP file](https://github.com/bia-pain-bache/BPB-Wizard/releases/latest), unzip it, and run the program.
+根据你的操作系统，[下载 ZIP 文件](https://github.com/zatursure/BPB-Wizard-Chinese/releases/latest)，解压后运行程序。
 
 #### Android (Termux) - Linux
 
-Android users who have Termux installed on their device and Linux users can use this bash:
+已安装 Termux 的 Android 用户和 Linux 用户可以使用以下命令：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/bia-pain-bache/BPB-Wizard/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/zatursure/BPB-Wizard-Chinese/main/install.sh)
 ```
 
 > [!IMPORTANT]  
-> Be sure to download and install Termux only from its [official source](https://github.com/termux/termux-app/releases/latest). Installing via Google Play might cause issues.
+> 请务必仅从 [官方渠道](https://github.com/termux/termux-app/releases/latest) 下载并安装 Termux。通过 Google Play 安装可能会导致问题。
 
-The first question asks whether you want to create a new panel or modify existing panels in the account.
+第一个问题会询问你是要创建新面板还是修改账号中已有的面板。
 
-Then logs into your Cloudflare account, return to the terminal and asks you a series of questions.
+随后会登录你的 Cloudflare 账号，返回终端后会依次询问你一系列问题。
 
-If you choose option 1, it will ask a series of configuration questions. You can use the default values or input your own. In the end, it opens the panel for you in your browser — that’s it.
+如果选择 1，将会询问一系列配置信息。你可以直接使用默认值，也可以输入自定义值。最后会自动在浏览器中打开面板——就是这么简单。
 
 > [!TIP]
-> For each setting it asks about, it has already generated a secure, personal value for you. You can simply press Enter to accept it and move on to the next question, or input your own values.
+> 每个设置项都会为你自动生成安全的专属值。你可以直接回车接受，也可以输入自己的值。
 
-If you choose option 2, it lists deployed Workers and Pages projects and you can choose which one to modify.
+如果选择 2，会列出已部署的 Workers 和 Pages 项目，你可以选择要修改的面板。
 
-## Updating Panel
+## 面板更新
 
-Just run wizard and select option 2 for the first question. It will show you a list of project names in your account — you can choose any to update to the latest stable version or delete.
+只需运行向导并在第一个问题选择 2。它会显示你账号下所有项目名称，你可以选择任意一个进行升级或删除。

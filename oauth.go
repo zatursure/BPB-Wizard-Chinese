@@ -96,10 +96,10 @@ func generateCodeChallenge(verifier string) string {
 
 func login() {
 	url := generateAuthURL()
-	fmt.Printf("\n%s Login %s...\n", title, fmtStr("Cloudflare", ORANGE, true))
+	fmt.Printf("\n%s 登录 %s...\n", title, fmtStr("Cloudflare", ORANGE, true))
 
 	if err := openURL(url); err != nil {
-		failMessage("Failed to login.")
+		failMessage("登录失败。")
 		log.Fatalln(err)
 	}
 }
@@ -107,13 +107,13 @@ func login() {
 func callback(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Query().Get("state")
 	if param != state {
-		failMessage("Invalid OAuth state.")
+		failMessage("无效的 OAuth 状态。")
 		return
 	}
 
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		failMessage("No code returned.")
+		failMessage("未返回授权码。")
 		return
 	}
 
@@ -124,12 +124,12 @@ func callback(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		failMessage("Failed to exchange oauthToken.")
+		failMessage("交换 oauthToken 失败。")
 		log.Fatalln(err)
 	}
 
 	obtainedToken <- token
-	successMessage("Cloudflare logged in successfully!")
+	successMessage("Cloudflare 登录成功！")
 
 	w.Header().Set("Content-Type", "text/html")
 	w.Write(indexHTML)
