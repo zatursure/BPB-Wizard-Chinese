@@ -2,6 +2,11 @@
 
 本项目旨在简化 [BPB 面板](https://github.com/zatursure/BPB-Worker-Panel-Chinese) 的部署与管理流程，防止用户在部署过程中出现错误。支持 Workers 和 Pages 两种方式，强烈推荐使用。
 
+## ⚠️ 注意事项
+
+> [!WARNING]
+> 本项目是原作者[bia-pain-bache](https://github.com/bia-pain-bache)的[BPB-Wizard](https://github.com/bia-pain-bache/BPB-Wizard)的中文翻译版本
+
 ## 💡 使用方法
 
 ### 1. Cloudflare 账号
